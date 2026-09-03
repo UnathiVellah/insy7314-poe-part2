@@ -1,4 +1,4 @@
-const validateRegister = (req, res, next) => {
+const validateRegisterInput = (req, res, next) => {
     const { fullName, email, password } = req.body;
 
     if (!fullName || !email || !password) {
