@@ -30,4 +30,31 @@ const validateRegisterInput = (req, res, next) => {
     next();
 };
 
-module.exports = { validateRegisterInput };
+const validateLoginInput = (req, res, next) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (typeof email !== 'string' || typeof password !== 'string') {
+        return res.status(400).json({ error: 'All input values must be text' });
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+    }
+
+    // No length/complexity check here on purpose - that belongs at
+    // registration. A login attempt should fail on wrong credentials, not on
+    // "your password doesn't meet policy", which would leak policy details
+    // to an unauthenticated caller.
+    req.body = {
+        email: email.toLowerCase().trim(),
+        password
+    };
+
+    next();
+};
+
+module.exports = { validateRegisterInput, validateLoginInput };
