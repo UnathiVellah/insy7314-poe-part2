@@ -99,7 +99,27 @@ The completed system will allow freelancers to:
 Administrators will provide platform-level oversight and management.
 
 Administrative functionality will be introduced as the application develops.
+---
+## 🎥 Project Demonstration Video
 
+A demonstration video has been provided to showcase the **HustleHub+ Part 1 – Secure Foundations** implementation.
+
+The demonstration includes:
+
+- Starting and running the HustleHub+ backend API
+- HTTPS configuration and secure API communication
+- Successful user registration
+- Password hashing
+- Successful user login
+- JWT token generation
+- Accessing a protected endpoint using a valid JWT
+- Demonstration of selected validation and security controls
+
+### ▶️ Watch the Demonstration
+
+[**Click here to view the HustleHub+ demonstration video on YouTube**](https://youtu.be/W0NX8Btqt5M)
+
+> **Note:** This video demonstrates the functionality implemented for Part 1 of the HustleHub+ project.
 ---
 
 ## 🎯 Part 1 Scope
