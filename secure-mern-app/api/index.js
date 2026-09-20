@@ -47,6 +47,12 @@ app.use((req, res, next) => {
     next();
 });
 
+// Responses carry tokens and financial data, so browsers and proxies must not cache them.
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+});
+
 // 4. Restrict CORS to the frontend origin
 app.use(
     cors({
