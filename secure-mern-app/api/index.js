@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const { seedAdmin } = require('./stores/seed');
 
 const app = express();
@@ -67,6 +68,7 @@ app.get('/health', (req, res) => {
 
 // 7. Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 8. 404 handler
 app.use((req, res) => {
