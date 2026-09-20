@@ -33,9 +33,19 @@ app.use(
                 frameAncestors: ["'none'"]
             }
         },
+        strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
+        referrerPolicy: { policy: 'no-referrer' },
+        frameguard: { action: 'deny' },
         crossOriginResourcePolicy: { policy: 'same-site' }
     })
 );
+
+// Helmet has no Permissions-Policy option, so switch off browser features
+// the API never needs.
+app.use((req, res, next) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    next();
+});
 
 // 4. Restrict CORS to the frontend origin
 app.use(
