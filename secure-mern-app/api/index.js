@@ -23,21 +23,35 @@ app.disable('x-powered-by');
 // 3. Security headers + CSP 
 app.use(
     helmet({
+        // The API only returns JSON, so it needs no scripts, styles or frames.
         contentSecurityPolicy: {
+            useDefaults: false,
             directives: {
-                defaultSrc: ["'self'"],
-                scriptSrc: ["'self'"],
-                styleSrc: ["'self'"],
-                imgSrc: ["'self'", 'data:'],
-                connectSrc:["'self'", CLIENT_ORIGIN],
-                objectSrc:["'none'"],
-                baseUri:["'self'"],
-                frameAncestors:["'none'"]
+                defaultSrc: ["'none'"],
+                baseUri: ["'none'"],
+                formAction: ["'none'"],
+                frameAncestors: ["'none'"]
             }
         },
+        strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
+        referrerPolicy: { policy: 'no-referrer' },
+        frameguard: { action: 'deny' },
         crossOriginResourcePolicy: { policy: 'same-site' }
     })
 );
+
+// Helmet has no Permissions-Policy option, so switch off browser features
+// the API never needs.
+app.use((req, res, next) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    next();
+});
+
+// Responses carry tokens and financial data, so browsers and proxies must not cache them.
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+});
 
 // 4. Restrict CORS to the frontend origin
 app.use(
