@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 // Local, in-memory user store
 const users = [];
@@ -50,6 +51,55 @@ const register = async (req, res, next) => {
 };
 
 /**
+ * POST /api/auth/login
+ */
+const login = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = users.find(u => u.email === normalizedEmail);
+
+        // Same generic message whether the email doesn't exist or the
+        // password is wrong - this prevents user enumeration attacks.
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+        if (!passwordMatches) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        if (!process.env.JWT_SECRET) {
+            // Fail loudly on the server side (logs), safely on the client side.
+            throw new Error('JWT_SECRET is not configured');
+        }
+
+        const token = jwt.sign(
+            { id: user.id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+        );
+
+        res.status(200).json({
+            message: 'Login successful',
+            data: {
+                token,
+                user: {
+                    id: user.id,
+                    fullName: user.fullName,
+                    email: user.email,
+                    role: user.role
+                }
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * Protected profile / test route
  * GET /api/auth/me
  */
@@ -80,6 +130,7 @@ const getProfile = async (req, res, next) => {
 
 module.exports = {
     register,
+    login,
     getProfile,
     users
 };

@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { register, getProfile } = require('../controllers/authController');
-const { validateRegisterInput } = require('../middleware/validateAuthInput');
+const { register, login, getProfile } = require('../controllers/authController');
+const { validateRegisterInput, validateLoginInput } = require('../middleware/validateAuthInput');
+const { protect } = require('../middleware/protect');
 
 router.post('/register', validateRegisterInput, register);
-
-// Luis wire JWT authentication token here: router.get('/me', protect, getProfile)
-router.get('/me', getProfile);
+router.post('/login', validateLoginInput, login);
+router.get('/me', protect, getProfile);
 
 module.exports = router;
