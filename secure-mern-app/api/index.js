@@ -23,16 +23,14 @@ app.disable('x-powered-by');
 // 3. Security headers + CSP 
 app.use(
     helmet({
+        // The API only returns JSON, so it needs no scripts, styles or frames.
         contentSecurityPolicy: {
+            useDefaults: false,
             directives: {
-                defaultSrc: ["'self'"],
-                scriptSrc: ["'self'"],
-                styleSrc: ["'self'"],
-                imgSrc: ["'self'", 'data:'],
-                connectSrc:["'self'", CLIENT_ORIGIN],
-                objectSrc:["'none'"],
-                baseUri:["'self'"],
-                frameAncestors:["'none'"]
+                defaultSrc: ["'none'"],
+                baseUri: ["'none'"],
+                formAction: ["'none'"],
+                frameAncestors: ["'none'"]
             }
         },
         crossOriginResourcePolicy: { policy: 'same-site' }
