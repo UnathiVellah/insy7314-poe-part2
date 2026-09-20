@@ -1,20 +1,27 @@
-const validateRegisterInput = (req, res, next) => {
-    const { fullName, email, password } = req.body;
+const { SELF_REGISTER_ROLES } = require('../config/roles');
 
-    if (!fullName || !email || !password) {
+const validateRegisterInput = (req, res, next) => {
+    const { fullName, email, password, role } = req.body;
+
+    if (!fullName || !email || !password || !role) {
         return res.status(400).json({ error: 'All fields are required' });
     }
 
     if (
         typeof fullName !== 'string' ||
         typeof email !== 'string' ||
-        typeof password !== 'string'
+        typeof password !== 'string' ||
+        typeof role !== 'string'
     ) {
         return res.status(400).json({ error: 'All input values must be text' });
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email)) {
         return res.status(400).json({ error: 'Please provide a valid email address' });
+    }
+
+    if (!SELF_REGISTER_ROLES.includes(role)) {
+        return res.status(400).json({ error: 'Role must be either client or freelancer' });
     }
 
     if (password.length < 8 || password.length > 72) {
@@ -24,7 +31,8 @@ const validateRegisterInput = (req, res, next) => {
     req.body = {
         fullName: fullName.trim(),
         email: email.toLowerCase().trim(),
-        password
+        password,
+        role
     };
 
     next();

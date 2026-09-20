@@ -9,6 +9,8 @@ const fs = require('fs');
 const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const { seedAdmin } = require('./stores/seed');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -66,6 +68,7 @@ app.get('/health', (req, res) => {
 
 // 7. Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 8. 404 handler
 app.use((req, res) => {
@@ -75,19 +78,23 @@ app.use((req, res) => {
 // 9. Centralised error handler
 app.use(errorHandler);
 
-// 10. Start the server - HTTPS when configured, HTTP otherwise
-if (USE_HTTPS) {
-    const keyPath = process.env.SSL_KEY_PATH || path.join(__dirname, 'certs', 'localhost-key.pem');
-    const certPath = process.env.SSL_CERT_PATH || path.join(__dirname, 'certs', 'localhost-cert.pem');
-    const httpsOptions = {
-        key: fs.readFileSync(keyPath),
-        cert: fs.readFileSync(certPath)
-    };
-    https.createServer(httpsOptions, app).listen(PORT, () => {
-        console.log(`HTTPS server running on port ${PORT}`);
-    });
-} else {
-    app.listen(PORT, () => {
-        console.log(`HTTP server running on port ${PORT}`);
-    });
-}
+// 10. Seed the admin, then start the server - HTTPS when configured, HTTP otherwise
+const startServer = () => {
+    if (USE_HTTPS) {
+        const keyPath = process.env.SSL_KEY_PATH || path.join(__dirname, 'certs', 'localhost-key.pem');
+        const certPath = process.env.SSL_CERT_PATH || path.join(__dirname, 'certs', 'localhost-cert.pem');
+        const httpsOptions = {
+            key: fs.readFileSync(keyPath),
+            cert: fs.readFileSync(certPath)
+        };
+        https.createServer(httpsOptions, app).listen(PORT, () => {
+            console.log(`HTTPS server running on port ${PORT}`);
+        });
+    } else {
+        app.listen(PORT, () => {
+            console.log(`HTTP server running on port ${PORT}`);
+        });
+    }
+};
+
+seedAdmin().then(startServer);
