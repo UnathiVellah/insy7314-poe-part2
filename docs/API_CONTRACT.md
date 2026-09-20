@@ -111,3 +111,31 @@ For a booking, `ownerId` is the client. For a transaction, `ownerId` is the free
 | Method | Path | Access | Purpose |
 |---|---|---|---|
 | GET | `/api/admin/users` | `admin` | List all users (never includes password hashes) |
+
+## Response format
+
+Successful responses use `{ "message": "...", "data": ... }`. `message` is
+optional. Errors always use a single field:
+
+```json
+{ "error": "Human readable message" }
+```
+
+Error messages never contain stack traces, file paths, or configuration values.
+
+## Status codes
+
+| Code | Meaning | Example |
+|---|---|---|
+| 200 | OK | Login, reads, updates, deletes |
+| 201 | Created | Register, create gig, create booking |
+| 400 | Validation failed | Missing field, wrong type, invalid email, `role` not `client` or `freelancer` |
+| 401 | Not authenticated | Missing, invalid or expired token. Wrong login credentials. |
+| 403 | Authenticated but wrong role | A client calling `POST /api/gigs` |
+| 404 | Not found, or not yours | Unknown route or id, or another user's gig |
+| 409 | Conflict | Email already registered |
+| 429 | Too many requests | Rate limit hit on login, register or booking |
+| 500 | Server error | Generic message only |
+
+`401` versus `403`: `401` means the API does not know who you are, `403` means it
+does but your role is not allowed to do that.
