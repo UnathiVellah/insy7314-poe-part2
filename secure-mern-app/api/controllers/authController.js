@@ -7,10 +7,10 @@ const { users } = require('../stores');
  */
 const register = async (req, res, next) => {
     try {
-        const { fullName, email, password } = req.body;
+        const { fullName, email, password, role } = req.body;
 
-        if (!fullName || !email || !password) {
-            return res.status(400).json({ error: 'Full name, email, and password are required' });
+        if (!fullName || !email || !password || !role) {
+            return res.status(400).json({ error: 'Full name, email, password, and role are required' });
         }
 
         const normalizedEmail = email.toLowerCase().trim();
@@ -28,7 +28,7 @@ const register = async (req, res, next) => {
             fullName: fullName.trim(),
             email: normalizedEmail,
             passwordHash,
-            role: 'user'
+            role
         };
 
         users.push(newUser);
