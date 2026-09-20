@@ -1,8 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-
-// Local, in-memory user store
-const users = [];
+const { users } = require('../stores');
 
 /**
  * POST /api/auth/register
