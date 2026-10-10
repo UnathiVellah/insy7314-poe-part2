@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import BookGigButton from '../components/BookGigButton'
 import GigCard from '../components/GigCard'
 import StatusMessage from '../components/StatusMessage'
+import { useAuth } from '../context/useAuth'
 import * as gigService from '../services/gigService'
 import { SORT_OPTIONS, filterAndSortGigs } from '../utils/gigs'
 
 function GigsPage() {
+  const { user } = useAuth()
   const [gigs, setGigs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -83,7 +86,9 @@ function GigsPage() {
               ) : (
                 <div className="gig-grid">
                   {visibleGigs.map((gig) => (
-                    <GigCard key={gig.id} gig={gig} />
+                    <GigCard key={gig.id} gig={gig}>
+                      {user.role === 'client' && <BookGigButton gig={gig} />}
+                    </GigCard>
                   ))}
                 </div>
               )}
