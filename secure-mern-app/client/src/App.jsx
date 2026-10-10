@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import BookingsPage from './pages/BookingsPage'
 import DashboardPage from './pages/DashboardPage'
 import GigsPage from './pages/GigsPage'
 import HomePage from './pages/HomePage'
@@ -20,6 +21,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/gigs" element={<GigsPage />} />
+          <Route path="/bookings" element={<BookingsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

@@ -3,10 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, saveAuth } from '../services/api'
 import * as authService from '../services/authService'
+import * as bookingService from '../services/bookingService'
 import * as gigService from '../services/gigService'
 import { renderApp } from '../test/renderApp'
 
 vi.mock('../services/authService')
+vi.mock('../services/bookingService')
 vi.mock('../services/gigService')
 
 const client = { id: 'u2', fullName: 'Sipho Dlamini', email: 'sipho@example.com', role: 'client' }
@@ -103,6 +105,41 @@ describe('GigsPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Unable to reach the server')
     expect(screen.queryByLabelText('Search gigs')).not.toBeInTheDocument()
+  })
+
+  it('shows a Book button on every gig to a client', async () => {
+    gigService.listGigs.mockResolvedValue(gigs)
+    renderApp('/gigs')
+
+    await screen.findByText('Logo design')
+
+    expect(screen.getAllByRole('button', { name: /book this gig/i })).toHaveLength(3)
+  })
+
+  it('does not show Book buttons to a freelancer', async () => {
+    const freelancer = { id: 'u1', fullName: 'Thandi Nkosi', email: 'thandi@example.com', role: 'freelancer' }
+    saveAuth('jwt-token', freelancer)
+    authService.getCurrentUser.mockResolvedValue(freelancer)
+    gigService.listGigs.mockResolvedValue(gigs)
+    renderApp('/gigs')
+
+    await screen.findByText('Logo design')
+
+    expect(screen.queryByRole('button', { name: /book this gig/i })).not.toBeInTheDocument()
+  })
+
+  it('books a gig straight from the page after confirming', async () => {
+    gigService.listGigs.mockResolvedValue(gigs)
+    bookingService.createBooking.mockResolvedValue({ booking: {}, transaction: {} })
+    const user = userEvent.setup()
+    renderApp('/gigs')
+
+    const card = (await screen.findByRole('heading', { name: 'Logo design' })).closest('article')
+    await user.click(within(card).getByRole('button', { name: /book this gig/i }))
+    await user.click(within(card).getByRole('button', { name: /confirm booking/i }))
+
+    expect(bookingService.createBooking).toHaveBeenCalledWith('a')
+    expect(await within(card).findByRole('status')).toHaveTextContent(/booking confirmed/i)
   })
 
   it('is reachable from the navigation bar', async () => {
