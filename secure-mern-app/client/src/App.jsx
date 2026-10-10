@@ -5,6 +5,7 @@ import BookingsPage from './pages/BookingsPage'
 import DashboardPage from './pages/DashboardPage'
 import GigsPage from './pages/GigsPage'
 import HomePage from './pages/HomePage'
+import IncomePage from './pages/IncomePage'
 import LoginPage from './pages/LoginPage'
 import MyGigsPage from './pages/MyGigsPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -28,6 +29,7 @@ function App() {
         {/* Freelancer-only pages */}
         <Route element={<ProtectedRoute allowedRoles={['freelancer']} />}>
           <Route path="/my-gigs" element={<MyGigsPage />} />
+          <Route path="/income" element={<IncomePage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
