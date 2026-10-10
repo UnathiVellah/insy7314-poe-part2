@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 
 // Placeholder dashboard. Later branches add the role-specific content
@@ -12,6 +13,9 @@ function DashboardPage() {
         You are logged in as <span className="badge">{user.role}</span>
       </p>
       <p>Your role-specific tools will appear here.</p>
+      <Link to="/gigs" className="btn btn-primary">
+        Browse gigs
+      </Link>
     </section>
   )
 }
