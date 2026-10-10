@@ -25,6 +25,7 @@ function Navbar() {
           {isAuthenticated ? (
             <>
               <NavLink to="/gigs">Browse gigs</NavLink>
+              {user.role === 'freelancer' && <NavLink to="/my-gigs">My gigs</NavLink>}
               <NavLink to="/bookings">Bookings</NavLink>
               <NavLink to="/dashboard">Dashboard</NavLink>
               <span className="nav-user">

@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage'
 import GigsPage from './pages/GigsPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import MyGigsPage from './pages/MyGigsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import RegisterPage from './pages/RegisterPage'
 
@@ -22,6 +23,11 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/gigs" element={<GigsPage />} />
           <Route path="/bookings" element={<BookingsPage />} />
+        </Route>
+
+        {/* Freelancer-only pages */}
+        <Route element={<ProtectedRoute allowedRoles={['freelancer']} />}>
+          <Route path="/my-gigs" element={<MyGigsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
