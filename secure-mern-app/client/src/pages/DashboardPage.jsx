@@ -14,6 +14,11 @@ function DashboardPage() {
       </p>
       <p>Your role-specific tools will appear here.</p>
       <div className="button-row">
+        {user.role === 'freelancer' && (
+          <Link to="/my-gigs" className="btn btn-primary">
+            Manage my gigs
+          </Link>
+        )}
         <Link to="/gigs" className="btn btn-primary">
           Browse gigs
         </Link>
