@@ -6,6 +6,7 @@ import './styles/layout.css'
 import './styles/gigs.css'
 import './styles/bookings.css'
 import './styles/manage-gigs.css'
+import './styles/income.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthProvider.jsx'
 

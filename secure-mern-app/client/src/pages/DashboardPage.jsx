@@ -19,6 +19,11 @@ function DashboardPage() {
             Manage my gigs
           </Link>
         )}
+        {user.role === 'freelancer' && (
+          <Link to="/income" className="btn btn-primary">
+            View income
+          </Link>
+        )}
         <Link to="/gigs" className="btn btn-primary">
           Browse gigs
         </Link>
