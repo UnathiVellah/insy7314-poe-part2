@@ -1,12 +1,13 @@
 // A label, an input and an optional error message, wired together for
-// accessibility (aria-invalid / aria-describedby).
-function FormField({ id, label, error, ...inputProps }) {
+// accessibility (aria-invalid / aria-describedby). Pass as="textarea" to get a
+// multi-line field instead of a single-line input.
+function FormField({ as: Control = 'input', id, label, error, ...inputProps }) {
   const errorId = `${id}-error`
 
   return (
     <div className="form-field">
       <label htmlFor={id}>{label}</label>
-      <input
+      <Control
         id={id}
         name={id}
         aria-invalid={error ? 'true' : 'false'}
