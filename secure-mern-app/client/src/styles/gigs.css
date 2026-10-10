@@ -1,0 +1,80 @@
+/* Gig browsing: page header, search toolbar and the grid of gig cards. */
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-header p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.toolbar .form-field {
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+
+.result-count {
+  margin: 0 0 1rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+.gig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.gig-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gig-title {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.gig-description {
+  flex: 1;
+  margin: 0;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.gig-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.gig-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.gig-date {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.gig-actions {
+  margin-top: 0.5rem;
+}
