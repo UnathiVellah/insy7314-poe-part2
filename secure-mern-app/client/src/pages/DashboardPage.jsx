@@ -13,9 +13,14 @@ function DashboardPage() {
         You are logged in as <span className="badge">{user.role}</span>
       </p>
       <p>Your role-specific tools will appear here.</p>
-      <Link to="/gigs" className="btn btn-primary">
-        Browse gigs
-      </Link>
+      <div className="button-row">
+        <Link to="/gigs" className="btn btn-primary">
+          Browse gigs
+        </Link>
+        <Link to="/bookings" className="btn btn-secondary">
+          View bookings
+        </Link>
+      </div>
     </section>
   )
 }
