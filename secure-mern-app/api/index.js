@@ -10,6 +10,7 @@ const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const gigRoutes = require('./routes/gigRoutes');
 const connectDB = require("./config/db");
 const { seedAdmin } = require('./stores/seed');
 
@@ -84,6 +85,7 @@ app.get('/health', (req, res) => {
 // 7. Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/gigs', gigRoutes);
 
 // 8. 404 handler
 app.use((req, res) => {
@@ -111,22 +113,6 @@ const startServer = () => {
         });
     }
 };
-
-// const initializeApp = async () => {
-//     try {
-//         await connectDb();
-
-//         await seedAdmin();
-
-//         startServer();
-
-//     } catch (error) {
-//         console.error("Application initialization failed.");
-//         process.exit(1);
-//     }
-// };
-
-// initializeApp();
 
 const initializeApp = async () => {
     try {
