@@ -10,6 +10,7 @@ const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const connectDB = require("./config/db");
 const { seedAdmin } = require('./stores/seed');
 
 const app = express();
@@ -111,4 +112,44 @@ const startServer = () => {
     }
 };
 
-seedAdmin().then(startServer);
+// const initializeApp = async () => {
+//     try {
+//         await connectDb();
+
+//         await seedAdmin();
+
+//         startServer();
+
+//     } catch (error) {
+//         console.error("Application initialization failed.");
+//         process.exit(1);
+//     }
+// };
+
+// initializeApp();
+
+const initializeApp = async () => {
+    try {
+        console.log("Step 1: Connecting to MongoDB...");
+        await connectDB();
+
+        console.log("Step 2: Initializing admin...");
+        await seedAdmin();
+
+        console.log("Step 3: Starting server...");
+        startServer();
+
+    } catch (error) {
+        console.error("Application initialization failed.");
+
+        // Safe diagnostic information for local development
+        if (process.env.NODE_ENV === "development") {
+            console.error("Error type:", error.name);
+            console.error("Error code:", error.code || "N/A");
+        }
+
+        process.exit(1);
+    }
+};
+
+initializeApp();
