@@ -27,6 +27,23 @@ describe('RegisterPage', () => {
     expect(options).toEqual(['client', 'freelancer'])
   })
 
+  it('tells the user the password rules up front', () => {
+    renderApp('/register')
+
+    expect(screen.getByText('Use 12 to 72 characters.')).toBeInTheDocument()
+  })
+
+  it('rejects a password shorter than 12 characters without calling the API', async () => {
+    const user = userEvent.setup()
+    renderApp('/register')
+
+    await fillForm(user, { password: 'Short1234!' })
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+
+    expect(screen.getByText('Password must be at least 12 characters.')).toBeInTheDocument()
+    expect(authService.register).not.toHaveBeenCalled()
+  })
+
   it('rejects mismatched passwords without calling the API', async () => {
     const user = userEvent.setup()
     renderApp('/register')

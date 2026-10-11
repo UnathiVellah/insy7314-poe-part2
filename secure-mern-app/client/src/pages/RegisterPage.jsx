@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import FormField from '../components/FormField'
 import StatusMessage from '../components/StatusMessage'
 import { useAuth } from '../context/useAuth'
-import { PASSWORD_MAX, hasErrors, validateRegister } from '../utils/validation'
+import { PASSWORD_MAX, PASSWORD_MIN, hasErrors, validateRegister } from '../utils/validation'
 
 function RegisterPage() {
   const { register, isAuthenticated } = useAuth()
@@ -114,7 +114,9 @@ function RegisterPage() {
           onChange={updateField}
           error={errors.confirmPassword}
         />
-        <p className="form-hint">Use 8 to 72 characters.</p>
+        <p className="form-hint">
+          Use {PASSWORD_MIN} to {PASSWORD_MAX} characters.
+        </p>
 
         <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
           {loading ? 'Creating account...' : 'Create account'}
