@@ -12,6 +12,7 @@ const { sanitizeInput } = require('./middleware/sanitizeInput');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const gigRoutes = require('./routes/gigRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
 const connectDB = require("./config/db");
 const { seedAdmin } = require('./stores/seed');
 
@@ -93,6 +94,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gigs', gigRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 // 8. 404 handler
 app.use((req, res) => {
