@@ -63,20 +63,24 @@ Success: `200`
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | `/api/gigs` | Any | List all gigs |
-| GET | `/api/gigs/:id` | Any | View one gig |
+| GET | `/api/gigs` | Public | List active gigs (paginated) |
+| GET | `/api/gigs/mine` | `freelancer` | List the caller's own gigs, including inactive ones |
+| GET | `/api/gigs/:id` | Public | View one active gig |
 | POST | `/api/gigs` | `freelancer` | Create a gig (owner is the caller) |
 | PUT | `/api/gigs/:id` | `freelancer`, owner only | Update a gig |
-| DELETE | `/api/gigs/:id` | `freelancer`, owner only | Delete a gig |
+| DELETE | `/api/gigs/:id` | `freelancer`, owner only | Soft-delete a gig (sets `isActive: false`) |
 
-Gig shape (proposed, finalised by Person 2):
+Gig shape:
 
 ```json
-{ "id": "uuid", "ownerId": "u1", "title": "Logo design", "description": "Three concepts and one revision", "price": 500, "createdAt": "2026-09-20T10:00:00.000Z" }
+{ "_id": "<mongoId>", "freelancer": "<mongoId>", "title": "Logo design", "description": "Three concepts and one revision", "category": "Design", "price": 500, "isActive": true, "createdAt": "2026-09-20T10:00:00.000Z", "updatedAt": "2026-09-20T10:00:00.000Z" }
 ```
 
-`POST` and `PUT` bodies take `title`, `description` and `price`. `price` is a positive number in ZAR.
-`POST` returns `201` with `{ "data": <gig> }`. `GET`, `PUT` and `DELETE` return `200`.
+`POST` bodies take all four of `title`, `description`, `category` and `price` - all required. `PUT` bodies take any subset of the same four fields. `price` is a positive number in ZAR with at most 2 decimal places. `title` is 5-100 characters, `description` is 20-2000 characters, `category` is 1-50 characters (free text, no fixed list). All three text fields are HTML-escaped before storage.
+
+`GET /api/gigs` accepts `?page=` (default 1) and `?limit=` (default 10, max 50) query parameters and returns `{ "data": [...], "pagination": { "page", "limit", "total", "totalPages" } }`.
+
+`POST` returns `201` with `{ "message": "...", "data": <gig> }`. `GET`, `PUT` return `200` the same way; `DELETE` returns `200` with just a `message`.
 
 ### Bookings
 
@@ -84,6 +88,15 @@ Gig shape (proposed, finalised by Person 2):
 |---|---|---|---|
 | POST | `/api/bookings` | `client` | Book a gig. Creates a booking and its transaction. |
 | GET | `/api/bookings` | `client`, `freelancer`, `admin` | Client: own bookings. Freelancer: bookings on their gigs. Admin: all. |
+
+> **For Person 2:** a `bookingLimiter` is already built and exported from
+> `middleware/rateLimiters.js` - apply it the same way `loginLimiter` is
+> applied in `routes/authRoutes.js`:
+> ```js
+> const { bookingLimiter } = require('../middleware/rateLimiters');
+> router.post('/', protect, authorize(ROLES.CLIENT), bookingLimiter, createBooking);
+> ```
+> See the Rate limits section below for the actual numbers.
 
 `POST /api/bookings` body: `{ "gigId": "uuid" }`. Success: `201`
 
@@ -139,3 +152,15 @@ Error messages never contain stack traces, file paths, or configuration values.
 
 `401` versus `403`: `401` means the API does not know who you are, `403` means it
 does but your role is not allowed to do that.
+
+## Rate limits
+
+All limits are per IP address and return `429` with `{ "error": "Too many requests. Please try again later." }`, the same error shape as every other failure.
+
+| Endpoint | Limit | Window | Why |
+|---|---|---|---|
+| `POST /api/auth/login` | 10 **failed** attempts | 15 minutes | Slows down credential stuffing / brute force. Successful logins don't count, so a user who mistypes their password a couple of times is never penalised. |
+| `POST /api/auth/register` | 20 attempts | 1 hour | Deters automated mass account creation and email-enumeration via the `409` response. |
+| `POST /api/bookings` | 30 attempts | 15 minutes | Stops a single account from hammering the booking/payment-simulation flow. Looser than login's, since this guards a normal authenticated action, not a credential check. |
+
+Implemented in `middleware/rateLimiters.js` using `express-rate-limit`.

@@ -5,9 +5,23 @@ import { hasErrors } from './validation'
 
 export const TITLE_MAX = 100
 export const DESCRIPTION_MAX = 1000
+export const CATEGORY_MAX = 50
 export const PRICE_MAX = 1000000
 
-export const validateGigForm = ({ title, description, price }) => {
+// The API stores category as free text (no fixed list), so these are just
+// suggestions offered via a <datalist> - a freelancer can still type
+// anything else that fits within CATEGORY_MAX.
+export const CATEGORY_SUGGESTIONS = [
+  'Design',
+  'Writing & Translation',
+  'Programming & Tech',
+  'Video & Animation',
+  'Music & Audio',
+  'Business',
+  'Other',
+]
+
+export const validateGigForm = ({ title, description, category, price }) => {
   const errors = {}
 
   if (!title.trim()) {
@@ -20,6 +34,12 @@ export const validateGigForm = ({ title, description, price }) => {
     errors.description = 'Description is required.'
   } else if (description.trim().length > DESCRIPTION_MAX) {
     errors.description = `Description must not exceed ${DESCRIPTION_MAX} characters.`
+  }
+
+  if (!category.trim()) {
+    errors.category = 'Category is required.'
+  } else if (category.trim().length > CATEGORY_MAX) {
+    errors.category = `Category must not exceed ${CATEGORY_MAX} characters.`
   }
 
   const text = String(price).trim()

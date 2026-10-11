@@ -1,27 +1,25 @@
 const express = require('express');
 const router = express.Router();
 
-const { 
+const {
     createGig,
     getGigs,
     getMyGigs,
     getGigById,
     updateGig,
-    deleteGig 
+    deleteGig
 
 } = require('../controllers/gigController');
 const { protect } = require('../middleware/protect');
+const { authorize } = require('../middleware/authorize');
 const { ROLES } = require('../config/roles');
 
-const freelancerOnly = (req, res, next) => {
-    if (req.user.role !== ROLES.FREELANCER) {
-        return res.status(403).json({
-            error: 'Access denied: freelancers only'
-        });
-    }
-
-    next();
-};
+// Reuses the same RBAC gate adminRoutes.js uses, rather than a one-off
+// role check - keeps a single, already-reviewed source of truth for "is
+// this user allowed to do this" across the whole API (also returns 401
+// instead of crashing if req.user somehow isn't set, which the previous
+// inline check didn't guard against).
+const freelancerOnly = authorize(ROLES.FREELANCER);
 
 // Public browsing
 router.get('/', getGigs);

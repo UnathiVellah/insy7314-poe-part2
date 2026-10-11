@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Gig = require('../models/Gig');
+const { escapeHtml } = require('../utils/sanitize');
 
 const PUBLIC_FIELDS = 
     'title description category price freelancer createdAt updatedAt';
@@ -59,8 +60,12 @@ const validateGigInput = (body, partial = false) => {
             return null;
         }
 
-        cleaned[key] = text;
-    } 
+        // title/description/category are free text other users will see
+        // rendered back on gig listings - escaped so they can never be
+        // interpreted as markup, the same treatment fullName gets at
+        // registration (see utils/sanitize.js).
+        cleaned[key] = escapeHtml(text);
+    }
 
     return cleaned;
 };

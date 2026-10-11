@@ -27,17 +27,24 @@ const requireRole = (user, ...roles) => {
 }
 
 const cleanGigInput = (input) => {
-  const { title, description, price } = input || {}
+  const { title, description, category, price } = input || {}
 
-  if (typeof title !== 'string' || typeof description !== 'string' || !title.trim() || !description.trim()) {
-    throw new ApiError('Title, description and price are required', 400)
+  if (
+    typeof title !== 'string' ||
+    typeof description !== 'string' ||
+    typeof category !== 'string' ||
+    !title.trim() ||
+    !description.trim() ||
+    !category.trim()
+  ) {
+    throw new ApiError('Title, description, category and price are required', 400)
   }
 
   if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
     throw new ApiError('Price must be a positive number', 400)
   }
 
-  return { title: title.trim(), description: description.trim(), price }
+  return { title: title.trim(), description: description.trim(), category: category.trim(), price }
 }
 
 // A gig the caller does not own looks exactly like a gig that does not exist.

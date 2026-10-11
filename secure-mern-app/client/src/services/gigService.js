@@ -20,7 +20,7 @@ export const getGig = async (id) => {
   return (await apiRequest(`/api/gigs/${encodeURIComponent(id)}`)).data
 }
 
-/** POST /api/gigs - freelancers only. Takes { title, description, price }. */
+/** POST /api/gigs - freelancers only. Takes { title, description, category, price }. */
 export const createGig = async (gig) => {
   if (mocksEnabled()) return mockApi.createGig(gig)
   return (await send('/api/gigs', 'POST', gig)).data

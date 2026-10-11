@@ -10,7 +10,12 @@ const admin = { id: 'u9', fullName: 'Administrator', email: 'admin@hustlehub.loc
 
 const loginAs = (user) => saveAuth('test-token', user)
 
-const validGig = { title: 'Brand identity', description: 'Logo, colours and fonts.', price: 1200 }
+const validGig = {
+  title: 'Brand identity',
+  description: 'Logo, colours and fonts.',
+  category: 'Design',
+  price: 1200,
+}
 
 describe('mock API', () => {
   beforeEach(() => {

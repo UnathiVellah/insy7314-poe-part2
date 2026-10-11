@@ -8,6 +8,7 @@ const gig = {
   ownerId: 'u1',
   title: 'Logo design',
   description: 'Three concepts',
+  category: 'Design',
   price: 500,
   createdAt: '2026-09-20T10:00:00.000Z',
 }
@@ -52,6 +53,7 @@ describe('ManageGigCard', () => {
       expect(onUpdate).toHaveBeenCalledWith('g1', {
         title: 'Logo design',
         description: 'Three concepts',
+        category: 'Design',
         price: 650,
       })
       expect(await screen.findByRole('button', { name: 'Edit Logo design' })).toBeInTheDocument()

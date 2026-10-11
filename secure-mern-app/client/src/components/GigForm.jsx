@@ -1,18 +1,26 @@
 import { useState } from 'react'
-import { DESCRIPTION_MAX, TITLE_MAX, hasErrors, validateGigForm } from '../utils/gigValidation'
+import {
+  CATEGORY_MAX,
+  CATEGORY_SUGGESTIONS,
+  DESCRIPTION_MAX,
+  TITLE_MAX,
+  hasErrors,
+  validateGigForm,
+} from '../utils/gigValidation'
 import FormField from './FormField'
 import StatusMessage from './StatusMessage'
 
 // The form used both to create a gig and to edit one.
 //
 //   initialValues - the gig being edited (leave out when creating)
-//   onSubmit      - async function that receives { title, description, price }.
+//   onSubmit      - async function that receives { title, description, category, price }.
 //                   If it throws, the error message is shown under the form.
 //   idPrefix      - keeps field ids unique when several forms are on one page
 function GigForm({ initialValues, submitLabel, onSubmit, onCancel, idPrefix = 'gig' }) {
   const [form, setForm] = useState({
     title: initialValues?.title ?? '',
     description: initialValues?.description ?? '',
+    category: initialValues?.category ?? '',
     price: initialValues?.price != null ? String(initialValues.price) : '',
   })
   const [errors, setErrors] = useState({})
@@ -38,6 +46,7 @@ function GigForm({ initialValues, submitLabel, onSubmit, onCancel, idPrefix = 'g
       await onSubmit({
         title: form.title.trim(),
         description: form.description.trim(),
+        category: form.category.trim(),
         price: Number(form.price),
       })
     } catch (error) {
@@ -46,6 +55,8 @@ function GigForm({ initialValues, submitLabel, onSubmit, onCancel, idPrefix = 'g
       setSubmitting(false)
     }
   }
+
+  const categoryListId = `${idPrefix}-category-suggestions`
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -71,6 +82,23 @@ function GigForm({ initialValues, submitLabel, onSubmit, onCancel, idPrefix = 'g
         onChange={update('description')}
         error={errors.description}
       />
+
+      <FormField
+        id={`${idPrefix}-category`}
+        label="Category"
+        type="text"
+        list={categoryListId}
+        maxLength={CATEGORY_MAX}
+        value={form.category}
+        onChange={update('category')}
+        error={errors.category}
+      />
+      {/* Suggestions only - the API accepts any free text up to CATEGORY_MAX. */}
+      <datalist id={categoryListId}>
+        {CATEGORY_SUGGESTIONS.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
 
       <FormField
         id={`${idPrefix}-price`}

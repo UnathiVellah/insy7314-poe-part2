@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { hasErrors, validateGigForm } from './gigValidation'
 
-const valid = { title: 'Logo design', description: 'Three concepts and one revision', price: '500' }
+const valid = {
+  title: 'Logo design',
+  description: 'Three concepts and one revision',
+  category: 'Design',
+  price: '500',
+}
 
 describe('validateGigForm', () => {
   it('accepts a complete, valid gig', () => {
@@ -14,9 +19,14 @@ describe('validateGigForm', () => {
     expect(errors.description).toBeDefined()
   })
 
-  it('rejects a title or description that is too long', () => {
+  it('requires a category', () => {
+    expect(validateGigForm({ ...valid, category: '   ' }).category).toBeDefined()
+  })
+
+  it('rejects a title, description or category that is too long', () => {
     expect(validateGigForm({ ...valid, title: 'a'.repeat(101) }).title).toMatch(/100/)
     expect(validateGigForm({ ...valid, description: 'a'.repeat(1001) }).description).toMatch(/1000/)
+    expect(validateGigForm({ ...valid, category: 'a'.repeat(51) }).category).toMatch(/50/)
   })
 
   it('requires a price', () => {

@@ -2,7 +2,7 @@
 // real API will provide. The data lives in memory and resets on page reload.
 //
 // Gig shape follows docs/API_CONTRACT.md:
-//   { id, ownerId, title, description, price, createdAt }
+//   { id, ownerId, title, description, category, price, createdAt }
 
 const seedGigs = () => [
   {
@@ -10,6 +10,7 @@ const seedGigs = () => [
     ownerId: 'mock-freelancer-1',
     title: 'Logo design',
     description: 'Three logo concepts and one round of revisions.',
+    category: 'Design',
     price: 500,
     createdAt: '2026-09-01T09:00:00.000Z',
   },
@@ -18,6 +19,7 @@ const seedGigs = () => [
     ownerId: 'mock-freelancer-1',
     title: 'Landing page copywriting',
     description: 'Clear, persuasive copy for a single landing page (up to 600 words).',
+    category: 'Writing & Translation',
     price: 750,
     createdAt: '2026-09-03T11:30:00.000Z',
   },
@@ -26,6 +28,7 @@ const seedGigs = () => [
     ownerId: 'mock-freelancer-2',
     title: 'React bug fixing',
     description: 'Up to two hours of debugging and fixing issues in a React project.',
+    category: 'Programming & Tech',
     price: 900,
     createdAt: '2026-09-05T14:15:00.000Z',
   },
@@ -34,6 +37,7 @@ const seedGigs = () => [
     ownerId: 'mock-freelancer-2',
     title: 'Social media pack',
     description: 'Ten branded post templates for Instagram and LinkedIn.',
+    category: 'Business',
     price: 650,
     createdAt: '2026-09-08T08:45:00.000Z',
   },

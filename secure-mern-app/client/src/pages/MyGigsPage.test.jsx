@@ -13,9 +13,9 @@ const freelancer = { id: 'u1', fullName: 'Thandi Nkosi', email: 'thandi@example.
 const client = { id: 'u2', fullName: 'Sipho Dlamini', email: 'sipho@example.com', role: 'client' }
 
 const gigs = [
-  { id: 'a', ownerId: 'u1', title: 'Logo design', description: 'Three concepts', price: 500, createdAt: '2026-09-01T09:00:00.000Z' },
-  { id: 'b', ownerId: 'u3', title: 'Someone else gig', description: 'Not mine', price: 900, createdAt: '2026-09-05T09:00:00.000Z' },
-  { id: 'c', ownerId: 'u1', title: 'Copywriting', description: 'Landing page text', price: 750, createdAt: '2026-09-03T09:00:00.000Z' },
+  { id: 'a', ownerId: 'u1', title: 'Logo design', description: 'Three concepts', category: 'Design', price: 500, createdAt: '2026-09-01T09:00:00.000Z' },
+  { id: 'b', ownerId: 'u3', title: 'Someone else gig', description: 'Not mine', category: 'Business', price: 900, createdAt: '2026-09-05T09:00:00.000Z' },
+  { id: 'c', ownerId: 'u1', title: 'Copywriting', description: 'Landing page text', category: 'Writing & Translation', price: 750, createdAt: '2026-09-03T09:00:00.000Z' },
 ]
 
 const loginAs = (user) => {
@@ -103,6 +103,7 @@ describe('MyGigsPage', () => {
         ownerId: 'u1',
         title: 'Brand identity',
         description: 'Logo, colours and fonts',
+        category: 'Design',
         price: 1200,
         createdAt: '2026-10-01T09:00:00.000Z',
       }
@@ -113,12 +114,14 @@ describe('MyGigsPage', () => {
       await user.click(await screen.findByRole('button', { name: 'New gig' }))
       await user.type(screen.getByLabelText('Title'), 'Brand identity')
       await user.type(screen.getByLabelText('Description'), 'Logo, colours and fonts')
+      await user.type(screen.getByLabelText('Category'), 'Design')
       await user.type(screen.getByLabelText('Price (ZAR)'), '1200')
       await user.click(screen.getByRole('button', { name: 'Create gig' }))
 
       expect(gigService.createGig).toHaveBeenCalledWith({
         title: 'Brand identity',
         description: 'Logo, colours and fonts',
+        category: 'Design',
         price: 1200,
       })
       expect(await screen.findByRole('status')).toHaveTextContent('Your gig has been created.')
@@ -141,6 +144,7 @@ describe('MyGigsPage', () => {
       expect(gigService.updateGig).toHaveBeenCalledWith('a', {
         title: 'Logo design',
         description: 'Three concepts',
+        category: 'Design',
         price: 650,
       })
       expect(await screen.findByText(/R\s?650/)).toBeInTheDocument()

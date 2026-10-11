@@ -8,6 +8,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
+const { sanitizeInput } = require('./middleware/sanitizeInput');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const gigRoutes = require('./routes/gigRoutes');
@@ -66,6 +67,12 @@ app.use(
 
 // 5. Limit Payload size
 app.use(express.json({ limit: '10kb' }));
+
+// 5b. Strip NoSQL-operator keys ($gt, $ne, $where, ...) from every request
+// body, globally, so the same protection covers every route - including
+// gigs/bookings (see middleware/sanitizeInput.js for why this isn't the
+// usual express-mongo-sanitize package - it's incompatible with Express 5).
+app.use(sanitizeInput);
 
 // 6. Root and health endpoints
 app.get('/', (req, res) => {

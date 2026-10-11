@@ -1,4 +1,16 @@
 const { SELF_REGISTER_ROLES } = require('../config/roles');
+const { escapeHtml } = require('../utils/sanitize');
+
+// Kept in sync with authController.js's own re-check (password length,
+// byte length, email length). Previously this middleware allowed an 8-72
+// character password while the controller required 12-72, so a password of
+// 8-11 characters passed validation here only to be rejected two steps
+// later with a different, confusing error ("Invalid registration details").
+// This is now the single authoritative rule set for both.
+const MIN_PASSWORD_LENGTH = 12;
+const MAX_PASSWORD_BYTES = 72; // bcrypt silently ignores anything past 72 bytes
+const MAX_EMAIL_LENGTH = 254; // RFC 5321
+const MAX_NAME_LENGTH = 100;
 
 const validateRegisterInput = (req, res, next) => {
     const { fullName, email, password, role } = req.body;
@@ -16,7 +28,14 @@ const validateRegisterInput = (req, res, next) => {
         return res.status(400).json({ error: 'All input values must be text' });
     }
 
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
+    const trimmedName = fullName.trim();
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (!trimmedName || trimmedName.length > MAX_NAME_LENGTH) {
+        return res.status(400).json({ error: 'Full name must be between 1 and 100 characters' });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedEmail.length > MAX_EMAIL_LENGTH) {
         return res.status(400).json({ error: 'Please provide a valid email address' });
     }
 
@@ -24,13 +43,22 @@ const validateRegisterInput = (req, res, next) => {
         return res.status(400).json({ error: 'Role must be either client or freelancer' });
     }
 
-    if (password.length < 8 || password.length > 72) {
-        return res.status(400).json({ error: 'Password must be between 8 and 72 characters' });
+    if (
+        password.length < MIN_PASSWORD_LENGTH ||
+        Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES
+    ) {
+        return res.status(400).json({
+            error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`
+        });
     }
 
     req.body = {
-        fullName: fullName.trim(),
-        email: email.toLowerCase().trim(),
+        // Escaped because fullName is free text a user chose and other
+        // users/admins will see it rendered back (gig listings, bookings,
+        // an admin user list). email and password are never rendered as
+        // HTML, so they're deliberately left un-escaped.
+        fullName: escapeHtml(trimmedName),
+        email: normalizedEmail,
         password,
         role
     };
@@ -49,16 +77,18 @@ const validateLoginInput = (req, res, next) => {
         return res.status(400).json({ error: 'All input values must be text' });
     }
 
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedEmail.length > MAX_EMAIL_LENGTH) {
         return res.status(400).json({ error: 'Please provide a valid email address' });
     }
 
-    // No length/complexity check here on purpose - that belongs at
-    // registration. A login attempt should fail on wrong credentials, not on
-    // "your password doesn't meet policy", which would leak policy details
-    // to an unauthenticated caller.
+    // No length/complexity check on the password here on purpose - that
+    // belongs at registration. A login attempt should fail on wrong
+    // credentials, not on "your password doesn't meet policy", which would
+    // leak policy details to an unauthenticated caller.
     req.body = {
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         password
     };
 

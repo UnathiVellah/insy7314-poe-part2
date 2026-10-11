@@ -3,9 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import GigForm from './GigForm'
 
-const fillForm = async (user, { title = 'Logo design', description = 'Three concepts', price = '500' } = {}) => {
+const fillForm = async (
+  user,
+  { title = 'Logo design', description = 'Three concepts', category = 'Design', price = '500' } = {},
+) => {
   await user.type(screen.getByLabelText('Title'), title)
   await user.type(screen.getByLabelText('Description'), description)
+  await user.type(screen.getByLabelText('Category'), category)
   await user.type(screen.getByLabelText('Price (ZAR)'), price)
 }
 
@@ -19,6 +23,7 @@ describe('GigForm', () => {
 
     expect(screen.getByText('Title is required.')).toBeInTheDocument()
     expect(screen.getByText('Description is required.')).toBeInTheDocument()
+    expect(screen.getByText('Category is required.')).toBeInTheDocument()
     expect(screen.getByText('Price is required.')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
@@ -40,22 +45,29 @@ describe('GigForm', () => {
     const user = userEvent.setup()
     render(<GigForm submitLabel="Create gig" onSubmit={onSubmit} onCancel={() => {}} />)
 
-    await fillForm(user, { title: '  Logo design  ', description: '  Three concepts  ', price: '500' })
+    await fillForm(user, {
+      title: '  Logo design  ',
+      description: '  Three concepts  ',
+      category: '  Design  ',
+      price: '500',
+    })
     await user.click(screen.getByRole('button', { name: 'Create gig' }))
 
     expect(onSubmit).toHaveBeenCalledWith({
       title: 'Logo design',
       description: 'Three concepts',
+      category: 'Design',
       price: 500,
     })
   })
 
   it('starts with the gig values filled in when editing', () => {
-    const gig = { id: 'g1', title: 'Logo design', description: 'Three concepts', price: 500 }
+    const gig = { id: 'g1', title: 'Logo design', description: 'Three concepts', category: 'Design', price: 500 }
     render(<GigForm initialValues={gig} submitLabel="Save changes" onSubmit={() => {}} onCancel={() => {}} />)
 
     expect(screen.getByLabelText('Title')).toHaveValue('Logo design')
     expect(screen.getByLabelText('Description')).toHaveValue('Three concepts')
+    expect(screen.getByLabelText('Category')).toHaveValue('Design')
     expect(screen.getByLabelText('Price (ZAR)')).toHaveValue(500)
   })
 
