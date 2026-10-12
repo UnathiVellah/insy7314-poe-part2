@@ -13,6 +13,7 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const gigRoutes = require('./routes/gigRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
 const connectDB = require("./config/db");
 const { seedAdmin } = require('./stores/seed');
 
@@ -95,6 +96,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gigs', gigRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // 8. 404 handler
 app.use((req, res) => {
