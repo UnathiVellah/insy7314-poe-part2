@@ -164,8 +164,38 @@ list have no limit or paging (C-02).
   documented 15 minutes and 1 hour. Restored.
 - **Development dependencies added vulnerabilities:** `newman` and
   `newman-reporter-htmlextra` bring 23 `npm audit` findings (1 critical, 15 high,
-  7 moderate), all in dev tooling; production dependencies audit clean. Not changed
-  yet: it is recorded as F-02 so the before/after can be evidenced.
+  7 moderate), all in dev tooling; production dependencies audit clean. Evidenced
+  as F-02 first; removed in the fix pack (section 7).
+
+## 7. Fix pack (F-01, F-02, C-02, C-04)
+
+Applied after the baseline scans (Nmap, `npm audit`, ZAP, Postman) were captured.
+
+- **F-01, TLS forward secrecy.** The HTTPS server now sets `minVersion: 'TLSv1.2'`, an
+  ECDHE-plus-AEAD `ciphers` list (AES-GCM and ChaCha20-Poly1305) and `honorCipherOrder`.
+  In a sandbox run against the real `index.js`, the old code accepted 19 TLS 1.2 suites
+  (10 without ECDHE); the new code accepts only ECDHE AEAD suites (3 with an RSA
+  certificate), and TLS 1.3 still negotiates.
+- **F-02, development dependencies.** `newman` and `newman-reporter-htmlextra` were removed
+  from `devDependencies`; `package-lock.json` shrank from 284 to 111 entries, with no
+  version change to any production package. `npm audit` reports 0 for the whole tree.
+  `overrides` were tried first and reduced 23 findings to 15 only: the rest need major-version
+  jumps (`uuid`, `csv-parse`, `jose`, `@faker-js/faker`) that break Newman. Max's collection
+  still runs in the Postman Runner; for a command-line run use `npx newman run <file>` on
+  demand (the risk then sits on the developer's machine, not in the repository).
+- **C-02, unbounded lists.** `utils/pagination.js` adds `?page=` and `?limit=` (default 50,
+  maximum 100, offset capped) with a `pagination` object, to `GET /api/admin/users`,
+  `/api/bookings/mine`, `/api/bookings/freelancer`, `/api/transactions/mine`,
+  `/api/transactions/income` (list only; totals still cover everything) and
+  `/api/gigs/mine`. Sorting gained an `_id` tie-break so pages are stable. Existing clients
+  that send no query string keep working.
+- **C-04, one role gate.** The route-local `requireRole` in `bookingRoutes.js` and
+  `transactionRoutes.js` was replaced by the shared `authorize()` middleware. The 403 body
+  for a wrong role is now `You do not have permission to perform this action`, the same as
+  gigs and admin, and the denial is logged.
+- **Checks run:** 90 requests against the real routers with the database stubbed (paging
+  defaults and bounds, invalid values, totals unchanged, 8 role-denial cases, 401 without a
+  token); the same script fails 74 of 90 on the previous code.
 
 ## Testing note
 

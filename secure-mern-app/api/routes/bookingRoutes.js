@@ -11,25 +11,16 @@ const {
 } = require('../controllers/bookingController');
 
 const { protect } = require('../middleware/protect');
+const { authorize } = require('../middleware/authorize');
 const { ROLES } = require('../config/roles');
-
-const requireRole = role => (req, res, next) => {
-    if (req.user.role !== role) {
-        return res.status(403).json({
-            error: 'Access denied'
-        });
-    }
-
-    next();
-};
 
 router.use(protect);
 
-router.post('/', requireRole(ROLES.CLIENT), bookingLimiter, createBooking);
+router.post('/', authorize(ROLES.CLIENT), bookingLimiter, createBooking);
 
-router.get('/mine', requireRole(ROLES.CLIENT), getMyBookings);
+router.get('/mine', authorize(ROLES.CLIENT), getMyBookings);
 
-router.get('/freelancer', requireRole(ROLES.FREELANCER), getFreelancerBookings);
+router.get('/freelancer', authorize(ROLES.FREELANCER), getFreelancerBookings);
 
 router.get('/:id', getBookingById);
 

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Gig = require('../models/Gig');
+const { parsePagination, paginationMeta } = require('../utils/pagination');
 
 const PUBLIC_FIELDS = 
     'title description category price freelancer createdAt updatedAt';
@@ -151,14 +152,28 @@ const getGigs = async (req, res, next) => {
 //Freelancers can view their own gigs including inactive gigs
 const getMyGigs = async (req, res, next) => {
     try {
-        const gigs = await Gig.find({
-            freelancer: req.user.id
-        })
-            .sort({ createdAt: -1 })
-            .lean();
+        const paging = parsePagination(req.query);
+
+        if (!paging) {
+            return res.status(400).json({
+                error: 'Invalid pagination parameters'
+            });
+        }
+
+        const filter = { freelancer: req.user.id };
+
+        const [gigs, total] = await Promise.all([
+            Gig.find(filter)
+                .sort({ createdAt: -1, _id: -1 })
+                .skip(paging.skip)
+                .limit(paging.limit)
+                .lean(),
+            Gig.countDocuments(filter)
+        ]);
 
         return res.status(200).json({
-            data: gigs
+            data: gigs,
+            pagination: paginationMeta(paging.page, paging.limit, total)
         });
     } catch (error) {
         next(error);

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Transaction = require('../models/Transaction');
+const { parsePagination, paginationMeta } = require('../utils/pagination');
 
 const validId = id =>
     mongoose.isObjectIdOrHexString(id);
@@ -94,17 +95,31 @@ const createTransaction = async (req, res, next) => {
 //Clients view their own simulated payments
 const getMyTransactions = async (req, res, next) => {
     try {
-        const transactions = await Transaction.find({
-            client: req.user.id
-        })
-        .sort({ createdAt: -1 })
-        .lean();
+        const paging = parsePagination(req.query);
+
+        if (!paging) {
+            return res.status(400).json({
+                error: 'Invalid pagination parameters'
+            });
+        }
+
+        const filter = { client: req.user.id };
+
+        const [transactions, total] = await Promise.all([
+            Transaction.find(filter)
+                .sort({ createdAt: -1, _id: -1 })
+                .skip(paging.skip)
+                .limit(paging.limit)
+                .lean(),
+            Transaction.countDocuments(filter)
+        ]);
 
         return res.status(200).json({
             data: transactions.map(transaction => ({
                 ...transaction,
                 amountFormatted: formatRand(transaction.amountCents)
-            }))
+            })),
+            pagination: paginationMeta(paging.page, paging.limit, total)
         });
     } catch (error) {
         next(error);
@@ -115,6 +130,16 @@ const getMyTransactions = async (req, res, next) => {
 //Freelancers view their simulated earnings
 const getFreelancerIncome = async (req, res, next) => {
     try {
+        // The totals come from the aggregate over ALL succeeded payments, so
+        // they stay exact; only the itemised list is paged.
+        const paging = parsePagination(req.query);
+
+        if (!paging) {
+            return res.status(400).json({
+                error: 'Invalid pagination parameters'
+            });
+        }
+
         const freelancerId = new mongoose.Types.ObjectId(
             req.user.id
         );
@@ -141,7 +166,9 @@ const getFreelancerIncome = async (req, res, next) => {
                 status: 'succeeded'
             })
                 .select('_id booking amountCents status createdAt')
-                .sort({ createdAt: -1 })
+                .sort({ createdAt: -1, _id: -1 })
+                .skip(paging.skip)
+                .limit(paging.limit)
                 .lean()
         ]);
 
@@ -156,7 +183,12 @@ const getFreelancerIncome = async (req, res, next) => {
                     summary[0]?.completedPayments || 0,
                 currency: 'ZAR',
                 transactions
-            }
+            },
+            pagination: paginationMeta(
+                paging.page,
+                paging.limit,
+                summary[0]?.completedPayments || 0
+            )
         });
     } catch (error) {
         next(error);

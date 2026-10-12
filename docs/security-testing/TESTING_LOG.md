@@ -47,14 +47,52 @@ the merged code **plus the integration delta**, but before any security fix.
 | 22 | Node scripts | `api` | escape regression (6 checks), price (12 checks), syntax check, load of all 22 modules | Before the delta: escape script failed 2 of 6 (**R-01**). After: 6/6, 12/12, all modules load | none |
 | 23 | curl | real `index.js`, database stubbed | `OPTIONS` preflight for `PATCH`; `POST` to login/register to read `RateLimit-Policy` | Preflight 204 with `PATCH` allowed (**FN-01** fixed); limiter windows `w=900` and `w=3600` (**R-02** fixed) | reproduce: S22 |
 
+## Round 2: runs on Luis's machine, final code `9f74aca`, before any security fix (2026-10-12)
+
+| # | Time | Tool | Target | Command or request | Raw output | Evidence | Result |
+|---|------|------|--------|--------------------|-----------|----------|--------|
+| 24 | ≈19:55 | curl | `/api/bookings/<id>/status` | `curl.exe -k -i -X OPTIONS ... -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: PATCH"` | - | S22 | 204; `Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE` (**FN-01** fixed, retested) |
+| 25 | before 20:27 | npm audit | `api` | `npm audit` | `raw/npm-audit-api-2.txt` | S20 (tail of output) | 23 vulnerabilities: 7 moderate, 15 high, 1 critical (**F-02**) |
+| 26 | before 20:27 | npm audit | `api` | `npm audit --omit=dev` | `raw/npm-audit-api-2-omit-dev.txt` | S21 | 0 vulnerabilities |
+| 27 | before 20:27 | npm audit | `client` | `npm audit` | - | S20b | 0 vulnerabilities |
+| 28 | before 20:27 | Postman | `POST /api/bookings` | client token, empty body, repeated | - | S18 | `429 Too Many Requests` (**C-01** retest). Screenshot shows the 429 only, not the request count |
+| 29 | before 20:27 | Postman | `POST /api/transactions` | client token, empty body, repeated | - | S19 | `429 Too Many Requests` (**C-01** retest). Same limitation |
+| 30 | before 20:27 | Atlas web console | Network Access, IP Access List | screenshot | - | S17 | One entry, `0.0.0.0/0`, "Created as part of the Auto Setup process" (**C-03**) |
+
+The exact times of rows 25-30 were not noted; the screenshots were sent at 20:27.
+
+| # | Time | Tool | Target | Command or request | Raw output | Evidence | Result |
+|---|------|------|--------|--------------------|-----------|----------|--------|
+| 31 | 20:41 | Postman Runner | Max's `Full Backend Security Suite`, environment `HustleHub Local - Full Suite` | full run, 1 iteration | - | none (setup failure, not used) | 29 passed, 75 failed. Cause: the environment's `testPassword` was empty or under the 12-character minimum, so register and login returned 400, no token was stored and every later request got 401. Test setup error, not an API fault |
+| 32 | 21:03 | Postman Runner | same collection and environment | full run after setting a 12+ character `testPassword` and fresh test emails | - | S23 | 104 checks: **103 passed, 1 failed**, 0 errors, 32 s. The one failure is "Reject XSS gig text or escape it", check "HTML is escaped": the API returns `<script>alert(1)</script>` as typed. This is the intended behaviour after **R-01** (output encoding by React, no `dangerouslySetInnerHTML` in the client); the test still expects escape-on-input. Accepted mismatch, to be agreed with Max |
+
+| # | Time | Tool | Target | Command or request | Raw output | Evidence | Result |
+|---|------|------|--------|--------------------|-----------|----------|--------|
+| 33 | ≈21:24-21:32 | OWASP ZAP 2.17.0 | `https://localhost:4000` | Automated Scan, traditional spider on, ajax spider off, no authentication | `raw/zap-1-unauth-baseline.html` | S24 (screenshot still to add) | 1 alert: Informational / Low confidence, "Re-examine Cache-control Directives" on `/health`; header is `no-store`, so false positive (**I-04**). Only 3 endpoints reached, all GET. ZAP also logged 5 errors and 4 warnings (see its `zap.log`; not yet read) |
+
+| # | Time | Tool | Target | Command or request | Raw output | Evidence | Result |
+|---|------|------|--------|--------------------|-----------|----------|--------|
+| 34 | ≈22:00-22:08 | Postman Runner through ZAP proxy `127.0.0.1:8080` | Max's suite, environment `HustleHub Local - Full Suite` | full run, then ZAP Replacer rule `Authorization: Bearer <client token>` | - | S27 (Sites tree) | ZAP learned 67 endpoints. A port-8080 conflict while saving ZAP's proxy options was caused by ZAP already listening there (`javaw.exe`) |
+| 35 | ≈22:08-22:14 | OWASP ZAP 2.17.0 | `https://localhost:4000` | Active Scan, default context, policy `Dev Standard`, authenticated by the Replacer rule | `raw/zap-2-auth-baseline.html` (JWT and test password redacted) | S25, S26, S27 | 3 Informational alert types, no Low/Medium/High (**I-04**, **I-05**, **I-06**). 94% of responses 4xx (rate limiters answered 429; admin routes 403), only 5% 2xx. S27 shows the scan at 30% (2461 requests); completion not recorded |
+
+Rows 36-39 were run by Claude in a review sandbox on the fix-pack code, not on your machine: they have
+**no screenshots** and are not the retest evidence. The retests on your machine are listed under
+"Planned".
+
+| # | Tool | Target | Command | Result | Evidence |
+|---|------|--------|---------|--------|----------|
+| 36 | openssl `s_client` | real `index.js` (database stubbed), self-signed RSA cert | every TLS 1.2 suite offered by the client, tried one by one, old code vs new code | Old: 19 accepted, 10 without ECDHE. New: 3 accepted, all ECDHE with AEAD; TLS 1.3 negotiates | `raw/sandbox-tls-before-fix.txt`, `raw/sandbox-tls-after-fix.txt` |
+| 37 | npm | `api` | `npm uninstall newman newman-reporter-htmlextra`; `npm audit` | 0 vulnerabilities; lock 284 -> 111 entries, no production version changed. `overrides` alone left 15 | none |
+| 38 | Node script | real routers, models stubbed, 120 rows | 90 requests: paging defaults and bounds, invalid values, income totals, 401, 8 role denials | New code 90 of 90 pass; old code 16 pass, 74 fail | none |
+| 39 | `node --check` | all `api` JS files | syntax check | no errors | none |
+
 ## Planned, not yet run
 
 | What | Why | Evidence name | Notes |
 |------|-----|---------------|-------|
-| Atlas Network Access page | Evidence for C-03 | S17 | Screenshot only |
-| 35 empty `POST /api/bookings`, then 25 empty `POST /api/transactions` | Retest C-01: 429 expected after 30 and 20 requests | S18, S19 | Postman Runner, client token; fresh 15-minute window for each |
-| `npm audit` and `npm audit --omit=dev` (api), `npm audit` (client) on the final code | Evidence for F-02 | S20, S21, S20b | Text into `raw/npm-audit-api-2*.txt` |
-| `PATCH` CORS preflight with `curl.exe` | Evidence for FN-01 | S22 | See register |
-| Newman collection run in Postman Runner | Regression evidence for Max's backend | S23 | `Full Backend Security Suite` collection |
-| OWASP ZAP baseline/automated scan | Rubric: web scan | `raw/zap-*.html` | Official run on the final merged code, unauthenticated and with a JWT |
-| Retests for every fix | Remediation flywheel | `evidence/after/` | Same command or request as the "before" run |
+| Second ZAP authenticated scan with limiter thresholds raised locally (not committed) | First scan was 94% 4xx, so the authenticated routes were barely tested | `raw/zap-3-auth-nolimit.html` | Restore `rateLimiters.js` afterwards; state in the report that the limiters were verified separately (S12, S18, S19) |
+| `npm ci` then `npm audit` in `api` | Retest F-02 | `evidence/after/S28_npm-audit-api-after.png` | Expect 0 |
+| Postman: `GET /api/bookings/mine?limit=101` (400) and without the parameter (200 with `pagination`) | Retest C-02 | `evidence/after/S29_list-pagination.png` | Client token |
+| `nmap -sV --script ssl-enum-ciphers -p 4000 127.0.0.1 -oN docs/security-testing/raw/nmap-3-tls-after.txt` | Retest F-01 | `evidence/after/S30_nmap-tls-after.png`, `raw/nmap-3-tls-after.txt` | Restart the API first; expect no `TLS_RSA_WITH_*` suites |
+| Postman: `GET /api/bookings/mine` with the freelancer token | Retest C-04 | `evidence/after/S31_booking-role-403.png` | Expect 403 with the new message |
+| Max's suite in the Postman Runner, after the fix pack | Regression | `evidence/after/S32_newman-suite-after.png` | Expect 103 of 104 (the R-01 test) |

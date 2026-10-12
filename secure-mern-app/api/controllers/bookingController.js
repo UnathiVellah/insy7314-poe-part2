@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Gig = require('../models/Gig');
 const Transaction = require('../models/Transaction');
+const { parsePagination, paginationMeta } = require('../utils/pagination');
 
 const validId = id => mongoose.isObjectIdOrHexString(id);
 
@@ -90,14 +91,28 @@ const createBooking = async (req, res, next) => {
 //Clients can view their own bookings
 const getMyBookings = async (req, res, next) => {
     try {
-        const bookings = await Booking.find({
-            client: req.user.id
-        })
-            .sort({ createdAt: -1 })
-            .lean();
+        const paging = parsePagination(req.query);
+
+        if (!paging) {
+            return res.status(400).json({
+                error: 'Invalid pagination parameters'
+            });
+        }
+
+        const filter = { client: req.user.id };
+
+        const [bookings, total] = await Promise.all([
+            Booking.find(filter)
+                .sort({ createdAt: -1, _id: -1 })
+                .skip(paging.skip)
+                .limit(paging.limit)
+                .lean(),
+            Booking.countDocuments(filter)
+        ]);
 
         return res.status(200).json({
-            data: bookings
+            data: bookings,
+            pagination: paginationMeta(paging.page, paging.limit, total)
         });
     } catch (error) {
         next(error);
@@ -108,14 +123,28 @@ const getMyBookings = async (req, res, next) => {
 //Freelancers can view bookings for their gigs
 const getFreelancerBookings = async (req, res, next) => {
     try {
-        const bookings = await Booking.find({
-            freelancer: req.user.id
-        })
-            .sort({ createdAt: -1 })
-            .lean();
+        const paging = parsePagination(req.query);
+
+        if (!paging) {
+            return res.status(400).json({
+                error: 'Invalid pagination parameters'
+            });
+        }
+
+        const filter = { freelancer: req.user.id };
+
+        const [bookings, total] = await Promise.all([
+            Booking.find(filter)
+                .sort({ createdAt: -1, _id: -1 })
+                .skip(paging.skip)
+                .limit(paging.limit)
+                .lean(),
+            Booking.countDocuments(filter)
+        ]);
 
         return res.status(200).json({
-            data: bookings
+            data: bookings,
+            pagination: paginationMeta(paging.page, paging.limit, total)
         });
     } catch (error) {
         next(error);

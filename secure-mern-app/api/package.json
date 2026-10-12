@@ -20,9 +20,5 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5"
-  },
-  "devDependencies": {
-    "newman": "^6.2.3",
-    "newman-reporter-htmlextra": "^1.23.1"
   }
 }

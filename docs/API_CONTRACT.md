@@ -83,6 +83,8 @@ Creation requires `title`, `description`, `category`, and `price`. Updates accep
 
 Default page is 1, default limit is 10, and maximum limit is 50. Gig creation returns `201`; reads and updates return `200`; soft deletion returns `200` with a message.
 
+**Paging on the other list endpoints.** `GET /api/gigs/mine`, `GET /api/bookings/mine`, `GET /api/bookings/freelancer`, `GET /api/transactions/mine`, `GET /api/transactions/income` (the itemised `transactions` list only) and `GET /api/admin/users` accept `?page=` (default 1) and `?limit=` (default **50**, maximum **100**). Results are newest first, and the response keeps its existing `data` shape and adds the same `pagination` object as the public gig list beside it. A value that is not a positive integer, a limit above 100, or a repeated parameter returns `400` with `Invalid pagination parameters`. Income totals (`totalIncomeCents`, `completedPayments`) always cover **all** succeeded payments; only the `transactions` list is paged.
+
 ## Booking and simulated-payment lifecycle
 
 **A transaction record is created for every new booking.** The transaction begins as `pending`; no real money is transferred. A client can simulate payment only after the freelancer completes the booking. That action updates the *existing* transaction to `succeeded` rather than inserting another transaction.
@@ -133,7 +135,7 @@ Success: **`201 Created`**
 
 The associated `pending` transaction is persisted in the database but **is not embedded in the booking response**. The client can retrieve it via `GET /api/transactions/mine`. The server calculates `agreedPriceCents` from the gig's price; clients cannot set the amount, freelancer, or booking status when creating a booking. Only active gigs can be booked, and a user cannot book their own gig.
 
-**List bookings** — `GET /api/bookings/mine` and `GET /api/bookings/freelancer` both return `200` with `{ "data": [ ... ] }` containing booking objects. `GET /api/bookings/:id` returns `200` with `{ "data": { ... } }`. In the supplied controllers, `gig` is an ObjectId, **not a populated gig title**.
+**List bookings** — `GET /api/bookings/mine` and `GET /api/bookings/freelancer` both return `200` with `{ "data": [ ... ], "pagination": { ... } }` containing booking objects (see the paging paragraph under gigs). `GET /api/bookings/:id` returns `200` with `{ "data": { ... } }`. In the supplied controllers, `gig` is an ObjectId, **not a populated gig title**.
 
 **Update booking status** — `PATCH /api/bookings/:id/status`:
 
@@ -245,7 +247,7 @@ Do not expose stack traces, secrets, internal file paths, or configuration value
 | `201` | Created | Register, create gig, create booking |
 | `400` | Invalid request | Invalid ObjectId, unexpected fields, invalid transition |
 | `401` | Unauthenticated | Missing, invalid, or expired token |
-| `403` | Forbidden | Wrong role; attempting to book own gig |
+| `403` | Forbidden | Wrong role (`You do not have permission to perform this action`, from the shared `authorize()` middleware on every route); attempting to book own gig |
 | `404` | Not found or inaccessible | Missing resource, another user's resource, disallowed booking transition |
 | `409` | Conflict | Duplicate email; duplicate or unavailable simulated payment |
 | `429` | Rate limited | Login, registration, booking creation, simulated payment |
@@ -277,7 +279,7 @@ The booking and payment limits above are applied in `routes/bookingRoutes.js` an
 - Booking creation returns a **booking**, not a `{ booking, transaction }` pair.
 - The client transaction list includes pending and cancelled records, but freelancer income includes succeeded records only.
 - There is no `GET /api/bookings` or `GET /api/transactions` endpoint in the supplied route files; use the role-specific routes above.
-- The previously documented `/api/admin/users` route has **not been verified** in the supplied backend and should not be used by the frontend until implemented and checked.
+- `GET /api/admin/users` exists (admin only, `adminController.listUsers`), is paged like the other lists, and never returns password hashes. The frontend does not use it.
 
 ## Testing and deployment notes
 

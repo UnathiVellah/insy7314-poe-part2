@@ -18,19 +18,23 @@ Person 4's real-API frontend) into the security branch, plus the integration del
 2026-10-12: CORS now allows `PATCH` (FN-01), HTML-escaping of gig text removed again (R-01),
 and the login/register limiter windows restored to 15 minutes / 1 hour (R-02). Security fixes
 for findings (F-01, F-02, C-02, C-04) are deliberately **not** applied yet, so the baseline scans
-(ZAP, `npm audit`, Nmap) show the "before" state.
+(ZAP, `npm audit`, Nmap) show the "before" state. The delta was committed as `9f74aca`, which is
+the exact baseline commit for every round 2 run.
 
 ## 1. Summary
 
 | ID | Title | Found by | Severity | CVSS | Status |
 |----|-------|----------|----------|------|--------|
-| F-01 | TLS 1.2 accepts cipher suites without forward secrecy | Nmap | Low | 3.7 | **Open** (confirmed) |
-| F-02 | Vulnerable development dependencies (Newman toolchain): 23 advisories, none in production dependencies | npm audit | Tool: Critical; contextual: Low | per advisory | **Open** (confirm with your own screenshot) |
-| C-01 | No rate limit on `POST /api/bookings` and `POST /api/transactions` | Code review | Medium (est.) | 4.3 (est.) | Fixed by Max in final merge (untested) |
-| C-02 | List endpoints return unbounded result sets | Code review | Low (est.) | 2.7-4.3 (est.) | Candidate |
-| C-03 | MongoDB Atlas network allow-list is `0.0.0.0/0` | Configuration review | Medium (est.) | to score | Candidate (evidence needed) |
-| C-04 | Duplicated route-local role check in booking and transaction routes | Code review | Informational | n/a | Candidate |
+| F-01 | TLS 1.2 accepts cipher suites without forward secrecy | Nmap | Low | 3.7 | **Fixed**, retest pending |
+| F-02 | Vulnerable development dependencies (Newman toolchain): 23 advisories, none in production dependencies | npm audit | Tool: Critical; contextual: Low | per advisory | **Fixed**, retest pending |
+| C-01 | No rate limit on `POST /api/bookings` and `POST /api/transactions` | Code review | Medium (est.) | 4.3 (est.) | **Closed** (retested, S18, S19) |
+| C-02 | List endpoints return unbounded result sets | Code review | Low (est.) | 2.7-4.3 (est.) | **Fixed**, retest pending |
+| C-03 | MongoDB Atlas network allow-list is `0.0.0.0/0` | Configuration review | Medium (est.) | to score | Candidate (evidence S17; fix pending) |
+| C-04 | Duplicated route-local role check in booking and transaction routes | Code review | Informational | n/a | **Fixed**, retest pending |
 | I-01 | Self-signed development certificate | Nmap | Informational | n/a | Accepted risk (dev only) |
+| I-04 | ZAP: "Re-examine Cache-control Directives" on `GET /health` | OWASP ZAP | Informational | n/a | False positive (header is `no-store`) |
+| I-05 | ZAP: "Authentication Request Identified" and "Session Management Response Identified" on `POST /api/auth/login` | OWASP ZAP | Informational | n/a | Not a vulnerability (ZAP's own text) |
+| I-06 | ZAP: "User Agent Fuzzer" on `POST /api/auth/login` and `/api/auth/register` | OWASP ZAP | Informational | n/a | False positive (difference caused by the rate limiter) |
 
 Candidates (C-xx) are real observations in the code, but have **not** yet been exercised
 or evidenced the way F-01 has. Do not present them as confirmed vulnerabilities until the
@@ -60,20 +64,26 @@ final merge (R-01, R-02) are recorded in section 5; they are not counted as vuln
 - **Evidence (before):**
   `evidence/before/S04c_nmap-tls-ciphers-part1.png`, `S04c_nmap-tls-ciphers-part2.png`,
   `raw/nmap-3-tls.txt`.
-- **Remediation (planned, not yet applied):** set `minVersion: 'TLSv1.2'` and an explicit
-  `ciphers` list limited to ECDHE key exchange with AEAD (GCM/ChaCha20) suites in the
-  `https.createServer` options. TLS 1.3 is unaffected.
+- **Remediation (applied in the fix pack):** `index.js` now sets `minVersion: 'TLSv1.2'`, an
+  explicit `ciphers` list limited to six ECDHE suites with AEAD (AES-GCM, ChaCha20-Poly1305)
+  and `honorCipherOrder: true` in the `https.createServer` options. TLS 1.3 is unaffected.
+- **Sandbox check (not your machine):** real `index.js`, self-signed RSA certificate, every
+  TLS 1.2 suite tried one by one with `openssl s_client`. Before: 19 accepted, 10 without ECDHE
+  (`raw/sandbox-tls-before-fix.txt`). After: 3 accepted, all ECDHE with AEAD (an RSA
+  certificate can only use the ECDHE-RSA ones), TLS 1.3 negotiates `TLS_AES_256_GCM_SHA384`
+  (`raw/sandbox-tls-after-fix.txt`).
 - **Reference:** OWASP Transport Layer Security Cheat Sheet; Mozilla Server Side TLS guidelines.
 - **Retest (planned):** repeat
   `nmap -sV --script ssl-enum-ciphers -p 4000 127.0.0.1 -oN docs/security-testing/raw/nmap-3-tls-after.txt`.
   Pass condition: no `TLS_RSA_WITH_*` suites listed; TLS 1.3 unchanged; login and
-  `/health` still work over HTTPS. Screenshot to `evidence/after/`.
-- **Status:** Open.
+  `/health` still work over HTTPS. Screenshot to `evidence/after/S30_nmap-tls-after.png`.
+- **Status:** Fixed in code; Closed once the Nmap retest is filed.
 
 ### F-02: Vulnerable development dependencies (Newman toolchain)
 
-- **Found by:** `npm audit` on the final merged base, 2026-10-12. Reproduce on your machine
-  for the evidence (S20, S21 below).
+- **Found by:** `npm audit` on the final merged base, 2026-10-12, reproduced on Luis's machine
+  (S20, S21, `raw/npm-audit-api-2*.txt`): 23 vulnerabilities (7 moderate, 15 high, 1 critical)
+  in the full tree, 0 with `--omit=dev`; the client reports 0 (S20b).
 - **Description:** Max's Newman additions to `secure-mern-app/api/package.json`
   (`newman` and `newman-reporter-htmlextra`, both `devDependencies`) pull in vulnerable
   transitive packages: **23 advisories (1 critical, 15 high, 7 moderate)**. The critical and
@@ -93,15 +103,22 @@ final merge (R-01, R-02) are recorded in section 5; they are not counted as vuln
 - **Evidence (before):** `evidence/before/S20_npm-audit-api-full.png` (`npm audit`),
   `evidence/before/S21_npm-audit-api-omit-dev.png` (`npm audit --omit=dev`),
   `raw/npm-audit-api-2.txt`, `raw/npm-audit-api-2-omit-dev.txt`.
-- **Remediation (planned, applied after the baseline scans):** first try `overrides` in
-  `package.json` that pin patched versions of the vulnerable transitive packages, keeping Newman.
-  `npm audit fix --force` is not recommended: it installs `newman@4.6.1`, an older major
-  version. If overrides break the Newman suite, remove the two devDependencies and run Newman on
-  demand instead (`npx newman run ...`); that takes the packages out of the repo's dependency
-  tree, but the risk then sits on the developer machine, which should be stated in the report.
+- **Remediation (applied in the fix pack):** `overrides` were tried first (patched `handlebars`,
+  `lodash`, `flatted`, `node-forge`, `qs`, `underscore`, `braces`): 23 findings fell to 15, because
+  the rest (`uuid`, `csv-parse`, `jose`, `@faker-js/faker`) need major-version jumps that break
+  Newman. `npm audit fix --force` was rejected: it installs `newman@4.6.1`, an older major
+  version. So `newman` and `newman-reporter-htmlextra` were **removed** from `devDependencies`;
+  `package-lock.json` went from 284 to 111 entries, with no version change to any production
+  package, and `npm audit` reports **0 vulnerabilities** for the whole tree. Max's collection
+  still runs in the Postman Runner; for a command-line run use `npx newman run <file>`, which
+  puts the risk on the developer's machine for that run, not in the repository.
 - **Reference:** npm audit documentation; the GitHub advisories listed above.
-- **Retest (planned):** `npm audit` reports 0 and Max's Newman collection still passes.
-- **Status:** Open.
+- **Retest (planned):** in `secure-mern-app/api` run `npm ci`, then `npm audit` (expect 0) and save
+  `evidence/after/S28_npm-audit-api-after.png`; run Max's collection in the Postman Runner again
+  (expect the same 103 of 104).
+- **Status:** Fixed in code; Closed once the retest is filed. Open item for the team: Max added
+  the two packages, so tell her they were removed and why. The S20 screenshot shows only the tail of the output (the
+  `underscore` and `uuid` advisories and the totals); the full list is in `raw/npm-audit-api-2.txt`.
 
 ## 3. Candidates to verify (code review observations)
 
@@ -129,7 +146,14 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
   The limiters count every request, including 400s, and key on IP address. Each route has its
   own counter, so the two tests do not affect each other; repeating one needs a fresh 15-minute
   window.
-- **Status:** Fixed (untested). Becomes Closed once S18 and S19 show the 429.
+- **Retest result (2026-10-12, Luis's machine):** `POST /api/bookings` and `POST /api/transactions`
+  both returned `429 Too Many Requests` with `{"error": "Too many requests. Please try again
+  later."}` (`evidence/before/S18_bookings-rate-limit-429.png`, `S19_transactions-rate-limit-429.png`).
+  Limitation: each screenshot shows the 429 response only, not how many requests came before
+  it, so the exact thresholds (30 and 20) are taken from `rateLimiters.js`, not from the
+  screenshots. The "after" evidence for this item is therefore the S18/S19 pair; the "before"
+  state is the code at `725c5ef` (no limiter on either route).
+- **Status:** Closed (retested).
 
 ### C-02: Unbounded list queries
 
@@ -144,8 +168,20 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
   `AV:N/AC:L/PR:?/UI:N/S:U/C:N/I:N/A:L`.
 - **To verify:** code references above are the evidence (copy the lines into the report).
   Optional dynamic proof: the S14a admin response already returns all users in one body.
-- **Planned fix:** reuse the paging pattern from `gigController` (default and maximum `limit`).
-- **Status:** Candidate.
+- **Fix (applied in the fix pack):** new `utils/pagination.js` (`?page=`, `?limit=`, default 50,
+  maximum 100, offset capped, repeated or non-integer values rejected with `400 Invalid
+  pagination parameters`) used by `GET /api/admin/users`, `/api/bookings/mine`,
+  `/api/bookings/freelancer`, `/api/transactions/mine`, `/api/transactions/income` (the itemised
+  list only; the totals still cover every succeeded payment) and also `/api/gigs/mine`, which had
+  the same pattern. Responses keep their `data` shape and add `pagination`; a request without a
+  query string behaves as before for up to 50 rows.
+- **Sandbox check:** 90 requests against the real routers with the database stubbed pass on the
+  new code and 74 of them fail on the old code (no paging, old 403 body).
+- **Retest (on your machine):** in Postman, as the client, `GET /api/bookings/mine?limit=101` ->
+  `400 Invalid pagination parameters`; `GET /api/bookings/mine` -> `200` with a `pagination`
+  object (`S29_list-pagination.png`). As the admin, `GET /api/admin/users?limit=1` -> one user
+  and `pagination.total` equal to the number of accounts. Max's suite must still pass.
+- **Status:** Fixed in code; Closed once the retest is filed.
 
 ### C-03: Atlas network allow-list is `0.0.0.0/0`
 
@@ -153,13 +189,14 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
   Network Access list was set to `0.0.0.0/0`, meaning the database accepts connections from any
   IP. It is still protected by credentials and TLS, but the network layer is wide open.
 - **OWASP:** A05 Security Misconfiguration.
-- **Evidence still needed:** screenshot of Atlas, Network Access, showing the entry. File as
-  `evidence/before/S17_atlas-network-access.png` (hide nothing sensitive; the page shows IP
-  entries only).
+- **Evidence (before):** `evidence/before/S17_atlas-network-access.png`: the IP Access List of
+  project `hustleHub_ST10438637` has a single entry, `0.0.0.0/0` ("includes your current IP
+  address"), comment "Created as part of the Auto Setup process", status Active.
 - **Planned fix:** replace with the team's actual IPs (or a documented temporary entry that is
   removed before submission). Retest by screenshotting the new list and confirming the app
   still connects from an allowed IP.
-- **Status:** Candidate (evidence needed). Infrastructure setting, not application code.
+- **Status:** Candidate, evidenced. Infrastructure setting, not application code; fix at the end,
+  together with rotating the Atlas password.
 
 ### C-04: Duplicated route-local role check
 
@@ -171,8 +208,17 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
 - **Impact:** none exploitable today, because `protect` always runs first and sets `req.user`.
   It is a maintainability and defence-in-depth issue: two implementations of one rule can drift.
 - **Severity:** Informational.
-- **Planned fix:** use `authorize()` in both route files (done together with C-01).
-- **Status:** Candidate.
+- **Fix (applied in the fix pack):** both route files now use `authorize()` from
+  `middleware/authorize.js`; `requireRole` is gone. A wrong-role request to these routes now
+  returns `403 You do not have permission to perform this action` (and is logged), as on gigs and
+  admin. The client's fake server (`mocks/mockServer.js`) still uses the old text `Access denied`;
+  it is a test double, so nothing breaks, but Person 4 may want to match it.
+- **Sandbox check:** 8 wrong-role requests on the real routers return that 403 body; the 2 `POST`
+  routes still return 403 for a freelancer.
+- **Retest (on your machine):** Max's suite (its role-denial checks assert the status 403 only)
+  and `GET https://localhost:4000/api/bookings/mine` with the freelancer token ->
+  `403` with the new message (screenshot `evidence/after/S31_booking-role-403.png`).
+- **Status:** Fixed in code; Closed once the retest is filed.
 
 ## 4. Informational and accepted
 
@@ -203,6 +249,64 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
   another's failed logins. The API contract already notes user-ID keys as a future improvement.
 - **Status:** Accepted risk (documented limitation).
 
+### I-04: ZAP "Re-examine Cache-control Directives" on `/health`
+
+- **Found by:** OWASP ZAP 2.17.0, unauthenticated Automated Scan of `https://localhost:4000`,
+  2026-10-12 about 21:24-21:32 SAST (`raw/zap-1-unauth-baseline.html`). Raised by a passive
+  scanner, risk Informational, confidence Low. CWE-525, WASC-13.
+- **Observation:** ZAP asks for a manual look at the caching headers of `GET /health`. The
+  response carries `Cache-Control: no-store`, which is the value ZAP's own solution text
+  recommends for secure content ("no-cache, no-store, must-revalidate"). It also sends a weak
+  `ETag`, which is harmless for a 34-byte health response.
+- **Assessment:** false positive. No action. Recorded so the report accounts for every alert.
+- **Scan coverage (important):** the scan reached only 3 endpoints, all `GET`, 100% JSON,
+  28% 2xx and 71% 4xx responses. A JSON API has no pages to spider, so the unauthenticated
+  scan exercised almost nothing. It is the unauthenticated baseline, not proof that the API is
+  free of the issues ZAP tests for. The authenticated scan (token plus requests driven through
+  ZAP from Postman) is the one that covers the routes.
+- **Status:** False positive (no fix needed).
+
+### I-05: ZAP "Authentication Request Identified" / "Session Management Response Identified"
+
+- **Found by:** OWASP ZAP 2.17.0, passive scanners, while Max's suite ran through the ZAP proxy
+  (`raw/zap-2-auth-baseline.html`).
+- **Observation:** ZAP recognised `POST /api/auth/login` as the login request (fields `email`,
+  `password`) and the JWT in `data.token` of the response as the session token. Both are
+  Informational. ZAP's own solution text says: "this is an informational alert and not a
+  vulnerability, so there is nothing to fix."
+- **Related:** the JWT is returned in the JSON body and kept in `sessionStorage` by the client
+  (I-02, accepted).
+- **Status:** Not a vulnerability.
+
+### I-06: ZAP "User Agent Fuzzer"
+
+- **Found by:** OWASP ZAP active scanner 10104, risk Informational, confidence Medium.
+- **Observation:** ZAP resends requests with other `User-Agent` values and flags a difference in
+  the response. The sample in the report is `POST /api/auth/login` returning **429** instead of
+  the original 200: the difference is the login rate limiter (`RateLimit-Policy: 10;w=900`),
+  not a User-Agent-dependent behaviour. The API does not branch on `User-Agent`.
+- **Status:** False positive.
+
+### ZAP authenticated scan: what it showed and what it could not test
+
+- **Run:** 2026-10-12 about 22:00-22:14 SAST. Max's suite was run once through the ZAP proxy
+  (so ZAP learned the routes), a Replacer rule added the client `Authorization` header, and an
+  active scan was started on `https://localhost:4000` (screenshots S25-S27, report
+  `raw/zap-2-auth-baseline.html`). The report was generated while the scan was at or after the
+  30% mark seen in S27; whether the scan reached 100% is not recorded.
+- **Result:** no Low, Medium or High alert. Three Informational alert types (I-05, I-06 and the
+  I-04 cache-control note on `/api/gigs/<id>`, seen in S25).
+- **Coverage:** 67 endpoints (49% GET, 29% POST, 8% PATCH, 8% PUT, 2% DELETE). But **94% of the
+  responses were 4xx and only 5% were 2xx**. The rate limiters answered most of the scan's
+  requests with 429 (login after 10 failures, bookings after 30, transactions after 20 per 15
+  minutes), and admin routes returned 403 for the client token. That confirms the limiters
+  work under attack (V-09, C-01), but it also means the scan's depth on the authenticated
+  routes was low. A "no findings" result must be reported as "no findings in the requests that
+  were not throttled".
+- **Open point:** a second scan with the limiter thresholds raised locally (not committed) would
+  test those routes properly. Decision pending with Luis.
+- **ZAP log:** the report lists 8 errors and 20 warnings in `zap.log`; not yet read.
+
 ## 5. Functional defects and merge regressions (not counted as vulnerabilities)
 
 ### FN-01: CORS preflight will block `PATCH /api/bookings/:id/status`
@@ -217,7 +321,11 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
 - **Retest on your machine (S22):**
   `curl.exe -k -i -X OPTIONS https://localhost:4000/api/bookings/64b000000000000000000001/status -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: PATCH"`
   and check that `PATCH` is in `Access-Control-Allow-Methods`.
-- **Status:** Fixed (untested on your machine).
+- **Retest result (2026-10-12 about 19:55 SAST, Luis's machine):** `204 No Content`,
+  `Access-Control-Allow-Origin: http://localhost:5173`,
+  `Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE`
+  (`evidence/before/S22_cors-patch-preflight.png`).
+- **Status:** Fixed (retested).
 
 ### R-01: HTML-escaping of gig text came back (merge regression)
 
@@ -231,6 +339,12 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
 - **Fixed in the integration delta:** `gigController.js` restored to the committed fix (text
   stored as typed, encoding left to React); the contract sentence corrected. XSS is still
   covered: React renders text as text, and the existing `GigCard` XSS test passes.
+- **Newman result (S23, 2026-10-12 21:03):** the one failing check in Max's suite (103 of 104
+  pass) is `Reject XSS gig text or escape it` / `HTML is escaped`. That test was written for
+  escape-on-input and still asserts the response does not contain `<script>`. The API now
+  returns the text as typed; the client never renders it as HTML (no `dangerouslySetInnerHTML`
+  or `innerHTML` in `client/src`). The fix is to update the test, not the code, unless the team
+  chooses input escaping.
 - **Decision to confirm with Max:** if she wants input escaping, the client would have to
   decode, which was rejected earlier because it compounds on edit and is easy to miss.
 - **Status:** Fixed (verified by script).
@@ -290,21 +404,20 @@ P-02 has the weakest evidence: the original audit output was not saved.
 
 Round 2 baseline evidence to capture on the final code, **before** any security fix is applied:
 
-- **S20, S21:** `npm audit` and `npm audit --omit=dev` in `secure-mern-app/api` (F-02); save the
-  text as `raw/npm-audit-api-2.txt` and `raw/npm-audit-api-2-omit-dev.txt`. Also
-  `npm audit` in `client` (expected 0) as `S20b`.
-- **S22:** the `PATCH` preflight check (FN-01).
-- **S18, S19:** limiter retests for C-01 (expect 429).
-- **S17:** Atlas network allow-list (C-03).
-- **S23:** Max's Newman/Postman collection run in Postman Runner (the `Full Backend Security
-  Suite` file), as regression evidence that the merged API still behaves.
-- **ZAP:** baseline automated scan, then an authenticated scan with a JWT, on the final code.
-  Export the HTML report to `raw/`.
+Captured on 2026-10-12: S17 (C-03), S18 and S19 (C-01), S20, S20b and S21 (F-02), S22 (FN-01),
+S23 (Max's suite: 103 of 104 pass; the one failure is the R-01 expectation mismatch).
+Still to capture:
+
+- **ZAP:** unauthenticated scan done (`raw/zap-1-unauth-baseline.html`, S24) and authenticated
+  scan done (`raw/zap-2-auth-baseline.html`, S25-S27, JWT and password redacted). Remaining:
+  decide on a second authenticated scan with the limiters raised locally, because 94% of the
+  responses in the first one were 4xx.
 - **S12** shows the 429 but not the count of attempts before it. Acceptable; note the limit from
   `rateLimiters.js:17-18` (10 failed attempts per 15 minutes).
 - **S10 and S14b** are recorded as made with a client token and a non-admin token as planned.
   The screenshots do not show which account the token belongs to.
 
-After the baseline: apply the fixes for F-01 (TLS ciphers), F-02 (dev dependencies), C-02
-(paging) and C-04 (shared `authorize()`), repeat each test, add the "after" screenshots to
-`evidence/after/`, and set the entries to **Closed**.
+The fixes for F-01, F-02, C-02 and C-04 are applied in the code (fix pack). Repeat each test on
+your machine, add the "after" screenshots to `evidence/after/` (S28 npm audit, S29 paging, S30 Nmap
+TLS, S31 role 403), and set the entries to **Closed**. C-03 (Atlas allow-list) is changed at the
+end, together with rotating the Atlas password and `JWT_SECRET`.

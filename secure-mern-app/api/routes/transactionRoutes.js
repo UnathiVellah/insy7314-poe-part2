@@ -10,27 +10,18 @@ const {
 } = require('../controllers/transactionController');
 
 const { protect } = require('../middleware/protect');
+const { authorize } = require('../middleware/authorize');
 const { ROLES } = require('../config/roles');
-
-const requireRole = role => (req, res, next) => {
-    if (req.user.role !== role) {
-        return res.status(403).json({
-            error: 'Access denied'
-        });
-    }
-
-    next();
-};
 
 router.use(protect);
 
 // Client payment endpoints
-router.post('/', requireRole(ROLES.CLIENT), paymentLimiter, createTransaction);
+router.post('/', authorize(ROLES.CLIENT), paymentLimiter, createTransaction);
 
-router.get('/mine', requireRole(ROLES.CLIENT), getMyTransactions);
+router.get('/mine', authorize(ROLES.CLIENT), getMyTransactions);
 
 // Freelancer income endpoint
-router.get('/income', requireRole(ROLES.FREELANCER), getFreelancerIncome);
+router.get('/income', authorize(ROLES.FREELANCER), getFreelancerIncome);
 
 // Authorized transaction details
 router.get('/:id', getTransactionById);

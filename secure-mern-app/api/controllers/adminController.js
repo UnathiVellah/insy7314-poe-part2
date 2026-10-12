@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { parsePagination, paginationMeta } = require('../utils/pagination');
 
 /**
  * GET /api/admin/users
@@ -12,7 +13,21 @@ const User = require('../models/User');
  */
 const listUsers = async (req, res, next) => {
     try {
-        const users = await User.find().sort({ createdAt: -1 });
+        const paging = parsePagination(req.query);
+
+        if (!paging) {
+            return res.status(400).json({
+                error: 'Invalid pagination parameters'
+            });
+        }
+
+        const [users, total] = await Promise.all([
+            User.find()
+                .sort({ createdAt: -1, _id: -1 })
+                .skip(paging.skip)
+                .limit(paging.limit),
+            User.countDocuments()
+        ]);
 
         const data = users.map((user) => ({
             id: user._id.toString(),
@@ -21,7 +36,10 @@ const listUsers = async (req, res, next) => {
             role: user.role
         }));
 
-        res.status(200).json({ data });
+        res.status(200).json({
+            data,
+            pagination: paginationMeta(paging.page, paging.limit, total)
+        });
     } catch (error) {
         next(error);
     }

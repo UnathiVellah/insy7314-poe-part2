@@ -31,15 +31,37 @@
 | S14a | `S14a_admin-users-200.png` | Admin can list users |
 | S14b | `S14b_admin-users-non-admin-403.png` | Non-admin cannot list users |
 
-### Still to capture (round 2, final code)
+## Screenshot index (round 2, final code `9f74aca`, before fixes)
+
+| ID | File | Shows |
+|----|------|-------|
+| S17 | `S17_atlas-network-access.png` | Atlas IP Access List with `0.0.0.0/0` (C-03) |
+| S18 | `S18_bookings-rate-limit-429.png` | `POST /api/bookings` returns 429 (C-01 retest) |
+| S19 | `S19_transactions-rate-limit-429.png` | `POST /api/transactions` returns 429 (C-01 retest) |
+| S20 | `S20_npm-audit-api-full.png` | `npm audit`, API: 23 vulnerabilities, tail of output (F-02); full text in `raw/npm-audit-api-2.txt` |
+| S20b | `S20b_npm-audit-client.png` | `npm audit`, client: 0 vulnerabilities |
+| S21 | `S21_npm-audit-api-omit-dev.png` | `npm audit --omit=dev`, API: 0 vulnerabilities |
+| S22 | `S22_cors-patch-preflight.png` | `PATCH` allowed by the CORS preflight (FN-01) |
+| S23 | `S23_newman-suite-run.png` | Max's Postman suite, 104 checks: 103 passed, 1 failed (R-01 test expectation) |
+| S24 | `S24_zap-alerts-unauth.png` | ZAP Automated Scan screen and Alerts tab, unauthenticated scan (report `raw/zap-1-unauth-baseline.html`) |
+| S25 | `S25_zap-alerts-auth.png` | ZAP Alerts tab during the authenticated scan |
+| S26 | `S26_zap-alert-detail.png` | One ZAP alert in detail (User Agent Fuzzer) |
+| S27 | `S27_zap-sites-tree-active-scan.png` | ZAP Sites tree after Max's suite, and the active scan at 30% (2461 requests, many 429/403 responses) |
+
+The authenticated ZAP report is `raw/zap-2-auth-baseline.html`; its JWT and test password were
+replaced by `[REDACTED-JWT]` and `[REDACTED-PASSWORD]` before filing.
+
+### Still to capture (after the fix pack, into `evidence/after/`)
 
 | ID | Shows |
 |----|-------|
-| S17 | Atlas Network Access allow-list (C-03) |
-| S18, S19 | Rate-limit retests: 429 on `POST /api/bookings` and `POST /api/transactions` (C-01) |
-| S20, S20b, S21 | `npm audit` for `api` (full), `client`, and `api --omit=dev` (F-02) |
-| S22 | `PATCH` CORS preflight (FN-01) |
-| S23 | Newman/Postman suite run |
+| S28 | `npm audit` in `api` after `npm ci`: 0 vulnerabilities (F-02) |
+| S29 | Postman: `?limit=101` returns 400 and the default list returns `pagination` (C-02) |
+| S30 | Nmap `ssl-enum-ciphers` after the fix: no `TLS_RSA_WITH_*` suites (F-01); text in `raw/nmap-3-tls-after.txt` |
+| S31 | Freelancer token on `GET /api/bookings/mine`: 403 with the shared `authorize()` message (C-04) |
+| S32 | Max's suite in the Postman Runner after the fix pack (regression) |
+
+Optional: a second ZAP scan with the limiters raised locally (`raw/zap-3-auth-nolimit.html`), not planned.
 
 Screenshots are redacted where they showed a JWT or a test password. Never commit a real token,
 `.env` content, a database connection string or a private key.

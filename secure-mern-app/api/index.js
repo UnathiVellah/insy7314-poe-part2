@@ -115,7 +115,22 @@ const startServer = () => {
         const certPath = process.env.SSL_CERT_PATH || path.join(__dirname, 'certs', 'localhost-cert.pem');
         const httpsOptions = {
             key: fs.readFileSync(keyPath),
-            cert: fs.readFileSync(certPath)
+            cert: fs.readFileSync(certPath),
+            // TLS 1.2 and above only. The cipher list is limited to ECDHE
+            // key exchange with AEAD ciphers (AES-GCM, ChaCha20-Poly1305), so
+            // every TLS 1.2 session has forward secrecy; static-RSA suites
+            // (finding F-01) are no longer offered. TLS 1.3 suites are
+            // negotiated separately by Node and are unaffected by this list.
+            minVersion: 'TLSv1.2',
+            ciphers: [
+                'ECDHE-ECDSA-AES256-GCM-SHA384',
+                'ECDHE-RSA-AES256-GCM-SHA384',
+                'ECDHE-ECDSA-CHACHA20-POLY1305',
+                'ECDHE-RSA-CHACHA20-POLY1305',
+                'ECDHE-ECDSA-AES128-GCM-SHA256',
+                'ECDHE-RSA-AES128-GCM-SHA256'
+            ].join(':'),
+            honorCipherOrder: true
         };
         https.createServer(httpsOptions, app).listen(PORT, () => {
             console.log(`HTTPS server running on port ${PORT}`);
