@@ -12,7 +12,7 @@ const gig = {
   id: 'g1',
   ownerId: 'u1',
   title: 'Logo design',
-  description: 'Three concepts',
+  description: 'Three concepts and one revision',
   price: 500,
   createdAt: '2026-09-20T10:00:00.000Z',
 }
@@ -36,6 +36,7 @@ describe('BookGigButton', () => {
     await user.click(screen.getByRole('button', { name: /book this gig/i }))
 
     expect(screen.getByText(/for R\s?500/)).toBeInTheDocument()
+    expect(screen.getByText(/you pay after the freelancer completes the work/i)).toBeInTheDocument()
     expect(screen.getByText(/payment is simulated/i)).toBeInTheDocument()
     expect(bookingService.createBooking).not.toHaveBeenCalled()
   })
@@ -52,7 +53,7 @@ describe('BookGigButton', () => {
   })
 
   it('books the gig once confirmed and offers a link to the bookings page', async () => {
-    bookingService.createBooking.mockResolvedValue({ booking: { id: 'b1' }, transaction: { id: 't1' } })
+    bookingService.createBooking.mockResolvedValue({ id: 'b1', status: 'pending' })
     const user = userEvent.setup()
     renderButton()
 
@@ -61,7 +62,7 @@ describe('BookGigButton', () => {
 
     expect(bookingService.createBooking).toHaveBeenCalledTimes(1)
     expect(bookingService.createBooking).toHaveBeenCalledWith('g1')
-    expect(await screen.findByRole('status')).toHaveTextContent(/booking confirmed/i)
+    expect(await screen.findByRole('status')).toHaveTextContent(/freelancer needs to accept it/i)
     expect(screen.getByRole('link', { name: /view my bookings/i })).toHaveAttribute('href', '/bookings')
   })
 
@@ -82,17 +83,17 @@ describe('BookGigButton', () => {
     expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled()
 
     await act(async () => {
-      finishBooking({ booking: {}, transaction: {} })
+      finishBooking({ id: 'b1', status: 'pending' })
     })
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/booking confirmed/i)
+    expect(await screen.findByRole('status')).toHaveTextContent(/booking requested/i)
   })
 
   it('shows the error and lets the user try again when booking fails', async () => {
     bookingService.createBooking.mockRejectedValueOnce(
       new ApiError('You do not have permission to perform this action', 403),
     )
-    bookingService.createBooking.mockResolvedValueOnce({ booking: {}, transaction: {} })
+    bookingService.createBooking.mockResolvedValueOnce({ id: 'b1', status: 'pending' })
     const user = userEvent.setup()
     renderButton()
 
@@ -103,7 +104,7 @@ describe('BookGigButton', () => {
 
     await user.click(screen.getByRole('button', { name: /confirm booking/i }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/booking confirmed/i)
+    expect(await screen.findByRole('status')).toHaveTextContent(/booking requested/i)
     expect(bookingService.createBooking).toHaveBeenCalledTimes(2)
   })
 })

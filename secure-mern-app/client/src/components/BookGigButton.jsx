@@ -9,9 +9,10 @@ import StatusMessage from './StatusMessage'
 // Booking asks for a confirmation first, and the buttons are disabled while
 // the request is in flight so a double click cannot book the gig twice.
 //
-// Payment is simulated: a booking creates a transaction record, but no money
-// moves. Only clients can book - the API enforces that, this button is only
-// shown to them for convenience.
+// Booking only sends a request: the freelancer has to accept it and complete
+// the work, and the client then pays (simulated) from the bookings page. Only
+// clients can book - the API enforces that, this button is only shown to them
+// for convenience.
 function BookGigButton({ gig }) {
   const [step, setStep] = useState('idle')
   const [error, setError] = useState('')
@@ -39,7 +40,7 @@ function BookGigButton({ gig }) {
       <div className="booking-confirm">
         <StatusMessage
           type="success"
-          message={`Booking confirmed. A simulated payment of ${formatPrice(gig.price)} was recorded.`}
+          message="Booking requested. The freelancer needs to accept it before work starts."
         />
         <Link to="/bookings">View my bookings</Link>
       </div>
@@ -61,7 +62,7 @@ function BookGigButton({ gig }) {
       <p>
         Book <strong>{gig.title}</strong> for {formatPrice(gig.price)}?
       </p>
-      <p className="muted">Payment is simulated, so you will not be charged.</p>
+      <p className="muted">You pay after the freelancer completes the work. Payment is simulated, so no money moves.</p>
 
       <StatusMessage type="error" message={error} />
 

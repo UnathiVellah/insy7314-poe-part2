@@ -55,3 +55,31 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Booking status badges (the base .badge style is in layout.css). */
+
+.badge-accepted {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.badge-completed {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  border-color: var(--color-success);
+}
+
+.badge-cancelled,
+.badge-muted {
+  opacity: 0.8;
+}
+
+/* Table cells with buttons stay compact and aligned. */
+
+.data-table td .button-row {
+  gap: 0.4rem;
+}
+
+.data-table td .booking-confirm {
+  min-width: 220px;
+}
