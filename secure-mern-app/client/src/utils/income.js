@@ -1,12 +1,12 @@
 // Helpers for the freelancer income page.
 //
-// The API's income summary lists transactions, and each transaction only
-// knows its bookingId. A booking knows its gigId. These helpers join the three
-// lists so the page can show which gig earned what, and group the money by
-// month for the chart.
+// The API's income summary lists payments, and each payment only knows its
+// bookingId. A booking knows its gigId. These helpers join the lists so the
+// page can show which gig earned what, and group the money by month for the
+// chart. All money is in whole cents.
 
-export const averageIncome = (income) =>
-  income.transactionCount > 0 ? income.totalIncome / income.transactionCount : 0
+export const averageIncomeCents = (income) =>
+  income.completedPayments > 0 ? Math.round(income.totalIncomeCents / income.completedPayments) : 0
 
 const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 
@@ -18,7 +18,7 @@ const monthLabel = (key) => {
 /**
  * Adds up income per calendar month, oldest first, keeping only the most
  * recent `maxMonths` months that have income. Months with no income are not
- * listed.
+ * listed. Totals are in cents.
  */
 export const groupIncomeByMonth = (transactions, maxMonths = 6) => {
   const totals = new Map()
@@ -28,7 +28,7 @@ export const groupIncomeByMonth = (transactions, maxMonths = 6) => {
     if (Number.isNaN(date.getTime())) continue
 
     const key = monthKey(date)
-    totals.set(key, (totals.get(key) || 0) + transaction.amount)
+    totals.set(key, (totals.get(key) || 0) + transaction.amountCents)
   }
 
   return [...totals.entries()]
@@ -38,8 +38,10 @@ export const groupIncomeByMonth = (transactions, maxMonths = 6) => {
 }
 
 /**
- * One row per transaction with the title of the gig that earned it, newest
- * first. The title is null when the booking or its gig no longer exists.
+ * One row per payment with the title of the gig that earned it, newest
+ * first. The title is null when the booking or its gig cannot be found.
+ *   bookings - the freelancer's bookings
+ *   gigs     - the freelancer's gigs (removed ones included)
  */
 export const buildIncomeRows = (transactions, bookings, gigs) => {
   const bookingsById = new Map(bookings.map((booking) => [booking.id, booking]))
@@ -53,7 +55,7 @@ export const buildIncomeRows = (transactions, bookings, gigs) => {
       return {
         id: transaction.id,
         gigTitle: gig ? gig.title : null,
-        amount: transaction.amount,
+        amountCents: transaction.amountCents,
         status: transaction.status,
         createdAt: transaction.createdAt,
       }

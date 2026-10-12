@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest'
 import IncomeChart from './IncomeChart'
 import StatCard from './StatCard'
 
+// Totals are in cents: 50000 is R500.00.
 const months = [
-  { key: '2026-08', label: 'Aug 2026', total: 500 },
-  { key: '2026-09', label: 'Sept 2026', total: 1000 },
+  { key: '2026-08', label: 'Aug 2026', total: 50000 },
+  { key: '2026-09', label: 'Sept 2026', total: 100000 },
 ]
 
 describe('IncomeChart', () => {
