@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema(
@@ -34,10 +35,9 @@ const transactionSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ['succeeded'],
+            enum: ['pending', 'succeeded', 'cancelled'],
             required: true,
-            default: 'succeeded',
-            immutable: true
+            default: 'pending'
         },
 
         paymentMethod: {

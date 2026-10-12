@@ -52,4 +52,19 @@ const bookingLimiter = rateLimit({
     handler: rateLimitHandler
 });
 
-module.exports = { loginLimiter, registerLimiter, bookingLimiter };
+// Prevent excessive simulated payment attempts.
+// Limits each client to 20 payment requests per 15 minutes.
+const paymentLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: rateLimitHandler
+});
+
+module.exports = {
+    loginLimiter,
+    registerLimiter,
+    bookingLimiter,
+    paymentLimiter
+};
