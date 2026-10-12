@@ -24,12 +24,22 @@
 | S08 | `S08_auth-me-200.png` | `GET /api/auth/me` with a token |
 | S09 | `S09_auth-me-no-token-401.png` | `GET /api/auth/me` without a token |
 | S10 | `S10_create-gig-wrong-role-403.png` | Client cannot create a gig |
-| S11 | `S11_nosql-injection-login.png` | NoSQL injection attempt on login is rejected (400) |
+| S11 | `S11_Postman_Nosqlinjection_test.png` | NoSQL injection attempt on login is rejected (400) |
 | S12 | `S12_login-rate-limit-429.png` | Login rate limit hit (password redacted) |
 | S13a | `S13a_create-gig-201.png` | Gig created with price 19.99 |
 | S13b | `S13b_list-gigs-200.png` | Public gig list |
 | S14a | `S14a_admin-users-200.png` | Admin can list users |
 | S14b | `S14b_admin-users-non-admin-403.png` | Non-admin cannot list users |
+
+### Still to capture (round 2, final code)
+
+| ID | Shows |
+|----|-------|
+| S17 | Atlas Network Access allow-list (C-03) |
+| S18, S19 | Rate-limit retests: 429 on `POST /api/bookings` and `POST /api/transactions` (C-01) |
+| S20, S20b, S21 | `npm audit` for `api` (full), `client`, and `api --omit=dev` (F-02) |
+| S22 | `PATCH` CORS preflight (FN-01) |
+| S23 | Newman/Postman suite run |
 
 Screenshots are redacted where they showed a JWT or a test password. Never commit a real token,
 `.env` content, a database connection string or a private key.

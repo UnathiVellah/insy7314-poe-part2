@@ -14,7 +14,7 @@ const rateLimitHandler = (req, res) => {
 // (skipSuccessfulRequests) means a legitimate user who gets their password
 // right on, say, the 3rd try is never penalised for their own typos.
 const loginLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
@@ -26,7 +26,7 @@ const loginLimiter = rateLimit({
 // still invites automated mass account creation / email enumeration via the
 // 409 "User already exists" response.
 const registerLimiter = rateLimit({
-    windowMs: 180 * 60 * 1000, // 1 hour
+    windowMs: 60 * 60 * 1000, // 1 hour
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
@@ -53,7 +53,7 @@ const bookingLimiter = rateLimit({
 });
 
 // Prevent excessive simulated payment attempts.
-// Limits each client to 20 payment requests per 15 minutes.
+// Limits each IP address to 20 payment requests per 15 minutes.
 const paymentLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20,

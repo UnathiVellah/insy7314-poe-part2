@@ -73,15 +73,17 @@ the same gate `adminRoutes.js` uses, so there's one reviewed implementation of
 |---|---|---|
 | `loginLimiter` | 10 failed attempts / 15 min / IP | `POST /api/auth/login` |
 | `registerLimiter` | 20 attempts / hour / IP | `POST /api/auth/register` |
-| `bookingLimiter` | 30 attempts / 15 min / IP | Exported, ready for Person 2's `POST /api/bookings` (still not pushed) |
+| `bookingLimiter` | 30 attempts / 15 min / IP | `POST /api/bookings` |
+| `paymentLimiter` | 20 attempts / 15 min / IP | `POST /api/transactions` |
 
-`loginLimiter` uses `skipSuccessfulRequests: true`. All three return the same
+`loginLimiter` uses `skipSuccessfulRequests: true`. All four return the same
 `{ "error": "..." }` shape as the rest of the API, not express-rate-limit's
 default body. No changes this pass — gig endpoints are read/write on a
 resource the caller already had to authenticate for, and don't take
 unauthenticated, credential-guessable input the way login does, so they
-weren't judged to need their own limiter. `bookingLimiter` is still waiting on
-Person 2's booking routes.
+weren't judged to need their own limiter. `bookingLimiter` and
+`paymentLimiter` were applied to the booking and payment routes in the final
+merge (see section 5).
 
 ## 3. JWT handling across protected routes
 
@@ -120,6 +122,51 @@ IDs are real to a caller who doesn't own them.
 
 - **Valid prices were rejected with `400`.** `gigController.js` checked decimal places with `Number.isInteger(price * 100)`, which fails on floating-point results such as `19.99 * 100 = 1998.9999999999998`. Roughly 1 in 10 valid 2-decimal prices (R19.99, R4.35, R9.95, R8.20...) could never be saved. It now uses `Math.round(price * 100) / 100 === price`, which accepts every valid price and still rejects `19.999`. Found by a teammate.
 
+## 5. Bookings and payments (final merged base)
+
+Reviewed `bookingController.js`, `transactionController.js`, `models/Booking.js`,
+`models/Transaction.js` and both route files after the final merge. This is a
+review by reading; the controllers use MongoDB transactions, which need a
+replica set (Atlas has one; a plain local MongoDB would not), so they were not
+executed in the review environment. Max's Newman collection is the end-to-end test.
+
+- **Booking creation:** clients only; the body must be exactly `{ gigId }`; the gig
+  must be active and not the caller's own; the price is read from the gig in the
+  database in cents, never from the request. The booking and its pending
+  transaction are written in one database transaction.
+- **Status changes:** one fixed transition table (freelancer: pending to accepted to
+  completed; client: pending to cancelled); the caller's ownership is part of the
+  query filter, so someone else's booking answers 404; cancelling also cancels the
+  pending transaction in the same database transaction.
+- **Payment:** clients only; body exactly `{ bookingId }`; the booking must be the
+  caller's own and completed; the pending transaction (amount taken from the
+  booking, not the request) is switched to `succeeded` with one atomic update, so a
+  second attempt answers 409. The unique index on `Transaction.booking` remains.
+- **Reads:** filtered by participant, 404 for anyone else; income counts succeeded
+  payments only.
+- **Rate limits:** `bookingLimiter` and `paymentLimiter` (added by Max), keyed on IP.
+
+Open observations (tracked in `docs/security-testing/VULN_REGISTER.md`): the two
+route files still carry their own `requireRole` instead of the shared
+`authorize()` (C-04); list queries on bookings, transactions and the admin user
+list have no limit or paging (C-02).
+
+## 6. Problems introduced by the final merge, fixed here
+
+- **CORS blocked `PATCH`.** `index.js` allowed only GET, POST, PUT and DELETE, but
+  the accept, complete and cancel buttons call `PATCH /api/bookings/:id/status`.
+  Browsers would have blocked every one at the preflight. `PATCH` added.
+- **HTML-escaping of gig text came back** (commit `50f67dc` and a contract
+  sentence), reversing the earlier double-escaping fix. Text is stored as typed
+  again; the contract is corrected. If Max wants input escaping, the client would
+  have to decode it.
+- **Limiter windows had drifted:** login 60 minutes and register 180 minutes against
+  documented 15 minutes and 1 hour. Restored.
+- **Development dependencies added vulnerabilities:** `newman` and
+  `newman-reporter-htmlextra` bring 23 `npm audit` findings (1 critical, 15 high,
+  7 moderate), all in dev tooling; production dependencies audit clean. Not changed
+  yet: it is recorded as F-02 so the before/after can be evidenced.
+
 ## Testing note
 
 No live MongoDB Atlas connection is available in the environment this review
@@ -139,6 +186,12 @@ was done in, so testing split into two parts:
   was run after the category fix — **164 tests across 22 files, all passing**,
   including the gig-form validation tests, the mock-API gig/booking tests, and
   the XSS-rendering test on `GigCard`.
+
+- **Final merged base (2026-10-12):** the 22 API modules load; the escape (6) and
+  price (12) regression scripts pass; the real `index.js`, with only the database
+  stubbed, answers a `PATCH` preflight and reports limiter windows of 900 s (login)
+  and 3600 s (register); the client suite passes with **300 tests in 24 files**;
+  `npm audit` is clean for `client` and for the API's production dependencies.
 
 `protect.js`/`authorize.js` were reviewed by reading rather than re-tested,
 since they weren't modified and were already verified working in the first

@@ -32,12 +32,29 @@ fix, with Max's booking and transaction routes merged in. Pre-final baseline.
 | 17 | same window, last | Postman | `POST /api/auth/login` | repeated wrong passwords | - | S12 | Before | `429 Too many requests` (V-09). The limiter blocked further logins from this IP for the rest of the 15-minute window |
 | 18 | ≈19:12 | Postman | `POST /api/auth/login` | body `{"email": {"$gt": ""}, "password": "x"}` | - | S11 | Before | 400 `All input values must be text`, no token (V-15, P-01 current behaviour) |
 
+## Round 2: final merged base (review sandbox, 2026-10-12 ≈19:30-20:00)
+
+Commit `0e9d99f` (merge of `dev` into the security branch). Rows 19-23 were run by Claude in a
+review sandbox, not on your machine, so they have **no screenshots**; rows marked "reproduce"
+must be repeated on your machine to create the evidence files. The baseline for those rows is
+the merged code **plus the integration delta**, but before any security fix.
+
+| # | Tool | Target | Command | Result | Evidence |
+|---|------|--------|---------|--------|----------|
+| 19 | npm audit | `api` | `npm audit` | 23 vulnerabilities: 1 critical, 15 high, 7 moderate, all from `newman` and `newman-reporter-htmlextra` (devDependencies): **F-02**. `npm audit --omit=dev`: 0 | reproduce: S20, S21 |
+| 20 | npm audit | `client` | `npm audit` | 0 vulnerabilities | reproduce: S20b |
+| 21 | Vitest | `client` | `npm test` | 24 files, 300 tests passed | none |
+| 22 | Node scripts | `api` | escape regression (6 checks), price (12 checks), syntax check, load of all 22 modules | Before the delta: escape script failed 2 of 6 (**R-01**). After: 6/6, 12/12, all modules load | none |
+| 23 | curl | real `index.js`, database stubbed | `OPTIONS` preflight for `PATCH`; `POST` to login/register to read `RateLimit-Policy` | Preflight 204 with `PATCH` allowed (**FN-01** fixed); limiter windows `w=900` and `w=3600` (**R-02** fixed) | reproduce: S22 |
+
 ## Planned, not yet run
 
 | What | Why | Evidence name | Notes |
 |------|-----|---------------|-------|
 | Atlas Network Access page | Evidence for C-03 | S17 | Screenshot only |
-| 35 empty `POST /api/bookings`, then 35 empty `POST /api/transactions` | Confirm C-01 (no 429 expected) | S18, S19 | Postman Runner, client token |
+| 35 empty `POST /api/bookings`, then 25 empty `POST /api/transactions` | Retest C-01: 429 expected after 30 and 20 requests | S18, S19 | Postman Runner, client token; fresh 15-minute window for each |
+| `npm audit` and `npm audit --omit=dev` (api), `npm audit` (client) on the final code | Evidence for F-02 | S20, S21, S20b | Text into `raw/npm-audit-api-2*.txt` |
+| `PATCH` CORS preflight with `curl.exe` | Evidence for FN-01 | S22 | See register |
+| Newman collection run in Postman Runner | Regression evidence for Max's backend | S23 | `Full Backend Security Suite` collection |
 | OWASP ZAP baseline/automated scan | Rubric: web scan | `raw/zap-*.html` | Official run on the final merged code, unauthenticated and with a JWT |
-| Repeat Nmap, `npm audit`, headers on final code | Rubric: retest | `raw/*-final.*` | After Max's and Person 4's merge |
 | Retests for every fix | Remediation flywheel | `evidence/after/` | Same command or request as the "before" run |

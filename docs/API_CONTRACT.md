@@ -70,7 +70,7 @@ Send the returned token as `Authorization: Bearer <token>` on protected requests
 }
 ```
 
-Creation requires `title`, `description`, `category`, and `price`. Updates accept supported fields. `price` is in ZAR; transaction amounts are stored separately in **integer cents**. The gig validation contract specifies title length 5–100, description length 20–2000, category length 1–50, and a positive price with no more than two decimal places. Text is HTML-escaped before storage.
+Creation requires `title`, `description`, `category`, and `price`. Updates accept supported fields. `price` is in ZAR; transaction amounts are stored separately in **integer cents**. The gig validation contract specifies title length 5–100, description length 20–2000, category length 1–50, and a positive price with no more than two decimal places. Text is stored exactly as typed (after trimming). The API does not HTML-escape input: React encodes text when it renders it, and escaping on input would show `&amp;` and `&#39;` on screen and compound on every edit. Length limits apply to the text as typed.
 
 `GET /api/gigs?page=1&limit=10` returns:
 
@@ -266,7 +266,7 @@ Implemented with `express-rate-limit` in `middleware/rateLimiters.js`. With the 
 | `POST /api/bookings` | 30 requests | 15 minutes | Applied after authentication and client role check |
 | `POST /api/transactions` | 20 requests | 15 minutes | Applied after authentication and client role check |
 
-The booking and payment limits above assume the route updates discussed for this implementation have been applied. A future improvement is user-ID-based keys for authenticated routes, with careful IPv6/proxy handling.
+The booking and payment limits above are applied in `routes/bookingRoutes.js` and `routes/transactionRoutes.js`. A future improvement is user-ID-based keys for authenticated routes, with careful IPv6/proxy handling.
 
 ## Frontend integration notes
 

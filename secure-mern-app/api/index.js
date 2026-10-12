@@ -62,7 +62,9 @@ app.use((req, res, next) => {
 app.use(
     cors({
         origin: CLIENT_ORIGIN,
-        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        // PATCH is needed for PATCH /api/bookings/:id/status (accept, complete,
+        // cancel). Without it the browser blocks the call at the CORS preflight.
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
         allowedHeaders: ['Content-Type', 'Authorization']
     })
 );
