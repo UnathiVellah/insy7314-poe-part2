@@ -1,5 +1,4 @@
 const { SELF_REGISTER_ROLES } = require('../config/roles');
-const { escapeHtml } = require('../utils/sanitize');
 
 // Kept in sync with authController.js's own re-check (password length,
 // byte length, email length). Previously this middleware allowed an 8-72
@@ -53,11 +52,10 @@ const validateRegisterInput = (req, res, next) => {
     }
 
     req.body = {
-        // Escaped because fullName is free text a user chose and other
-        // users/admins will see it rendered back (gig listings, bookings,
-        // an admin user list). email and password are never rendered as
-        // HTML, so they're deliberately left un-escaped.
-        fullName: escapeHtml(trimmedName),
+        // Stored exactly as typed. Output encoding is done by React when
+        // the name is rendered; escaping here too would show O'Brien as
+        // O&#39;Brien.
+        fullName: trimmedName,
         email: normalizedEmail,
         password,
         role

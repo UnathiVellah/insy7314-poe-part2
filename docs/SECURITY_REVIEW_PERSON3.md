@@ -28,13 +28,22 @@ version) made `req.query` a read-only getter, so it throws a `TypeError` on
 every single request. Confirmed this directly before writing the custom
 version, which only mutates objects in place.
 
-**Extended: stored-XSS protection on display fields now covers gig fields too.**
-`fullName` was already HTML-escaped (`utils/sanitize.js`). This pass extends
-the same treatment to `title`, `description` and `category` on
-`POST /api/gigs` and `PUT /api/gigs/:id` (`controllers/gigController.js`),
-since these are free-text fields other users see rendered back on gig
-listings — the same reasoning as `fullName`. Deliberately **not** applied to
-`price` (a number) or anything auth-related.
+**Stored XSS: output encoding, not escaping on input (corrected).** An earlier
+pass of this review HTML-escaped `fullName` at registration and gig
+`title`/`description`/`category` before saving them. That was the wrong layer,
+and a teammate caught the result: React encodes text when it renders it, so the
+already-escaped text was encoded twice ("Writing & Translation" showed as
+`Writing &amp; Translation`, "O'Brien" as `O&#39;Brien`), and because the edit
+form pre-fills the stored value, every edit-and-save compounded it
+(`&amp;amp;`, `&amp;amp;amp;`...). The escaping has been removed from the API
+and `utils/sanitize.js` deleted. Text is now stored exactly as typed and
+encoded at output, which is the standard defence: React renders every field as
+text, nothing in the client uses `dangerouslySetInnerHTML`, and `GigCard` has a
+test that hostile `<img onerror>` / `<script>` payloads render as inert text.
+The same rule applies to any future consumer (an email template, a CSV export):
+encode for that output context when rendering. Length limits are unchanged.
+Anything already saved while escaping was on keeps its escaped form until it is
+re-saved.
 
 **Fixed: a frontend/backend contract mismatch on `category`.** Max's
 `models/Gig.js` and `gigController.js` require a `category` field on gig
@@ -109,6 +118,8 @@ IDs are real to a caller who doesn't own them.
   `stores.users` array instead of querying MongoDB). Still fixed the same way.
 - **`.env.example` didn't document `MONGO_URI`.** Still fixed the same way.
 
+- **Valid prices were rejected with `400`.** `gigController.js` checked decimal places with `Number.isInteger(price * 100)`, which fails on floating-point results such as `19.99 * 100 = 1998.9999999999998`. Roughly 1 in 10 valid 2-decimal prices (R19.99, R4.35, R9.95, R8.20...) could never be saved. It now uses `Math.round(price * 100) / 100 === price`, which accepts every valid price and still rejects `19.999`. Found by a teammate.
+
 ## Testing note
 
 No live MongoDB Atlas connection is available in the environment this review
@@ -117,10 +128,13 @@ was done in, so testing split into two parts:
 - **Backend**: every source file (`middleware/`, `controllers/`, `routes/`,
   `models/`, `utils/`) was syntax-checked and smoke-loaded with `require()` to
   catch missing dependencies or bad imports, then the pure-logic pieces that
-  don't need a live database — `sanitizeInput`, `escapeHtml`, and
+  don't need a live database — `sanitizeInput` and
   `validateRegisterInput`/`validateLoginInput` — were exercised directly
   against both legitimate and hostile inputs (NoSQL injection payloads, HTML
-  in `fullName`, short/long passwords). All 9 checks passed.
+  in `fullName`, short/long passwords). All checks passed. After the escaping
+  correction, a further 6 checks confirmed gig fields and `fullName` are stored
+  exactly as typed (`&`, `'`, hostile markup unchanged) while length
+  validation still rejects bad input.
 - **Frontend**: the full client test suite (Vitest + React Testing Library)
   was run after the category fix — **164 tests across 22 files, all passing**,
   including the gig-form validation tests, the mock-API gig/booking tests, and

@@ -76,7 +76,7 @@ Gig shape:
 { "_id": "<mongoId>", "freelancer": "<mongoId>", "title": "Logo design", "description": "Three concepts and one revision", "category": "Design", "price": 500, "isActive": true, "createdAt": "2026-09-20T10:00:00.000Z", "updatedAt": "2026-09-20T10:00:00.000Z" }
 ```
 
-`POST` bodies take all four of `title`, `description`, `category` and `price` - all required. `PUT` bodies take any subset of the same four fields. `price` is a positive number in ZAR with at most 2 decimal places. `title` is 5-100 characters, `description` is 20-2000 characters, `category` is 1-50 characters (free text, no fixed list). All three text fields are HTML-escaped before storage.
+`POST` bodies take all four of `title`, `description`, `category` and `price` - all required. `PUT` bodies take any subset of the same four fields. `price` is a positive number in ZAR with at most 2 decimal places. `title` is 5-100 characters, `description` is 20-2000 characters, `category` is 1-50 characters (free text, no fixed list). Text is stored exactly as typed; it is HTML-encoded when rendered (React does this), not on the way in.
 
 `GET /api/gigs` accepts `?page=` (default 1) and `?limit=` (default 10, max 50) query parameters and returns `{ "data": [...], "pagination": { "page", "limit", "total", "totalPages" } }`.
 

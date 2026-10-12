@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const Gig = require('../models/Gig');
-const { escapeHtml } = require('../utils/sanitize');
 
 const PUBLIC_FIELDS = 
     'title description category price freelancer createdAt updatedAt';
@@ -33,7 +32,9 @@ const validateGigInput = (body, partial = false) => {
                 !Number.isFinite(value) ||
                 value < 1 ||
                 value > 1000000 ||
-                !Number.isInteger(value * 100)
+                // At most 2 decimal places. Number.isInteger(value * 100) is
+                // wrong here: 19.99 * 100 is 1998.9999999999998 in floating point.
+                Math.round(value * 100) / 100 !== value
             ) {
                 return null;
             }
@@ -60,11 +61,10 @@ const validateGigInput = (body, partial = false) => {
             return null;
         }
 
-        // title/description/category are free text other users will see
-        // rendered back on gig listings - escaped so they can never be
-        // interpreted as markup, the same treatment fullName gets at
-        // registration (see utils/sanitize.js).
-        cleaned[key] = escapeHtml(text);
+        // Stored exactly as typed. HTML-encoding belongs at output time:
+        // React encodes text when it renders it, so storing already-escaped
+        // text would be encoded a second time ("&amp;amp;") on screen.
+        cleaned[key] = text;
     }
 
     return cleaned;

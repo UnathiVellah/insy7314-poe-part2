@@ -14,13 +14,11 @@
 // never reassigns `req.body`, `req.query` or `req.params` themselves, so
 // it's safe under Express 5.
 //
-// This file does NOT escape string values. Escaping belongs with whichever
-// field is actually going to be displayed somewhere (see escapeHtml in
-// utils/sanitize.js, used on fullName at registration and on gig
-// title/description/category) - never applied blindly here, because this
-// middleware also sees the password field, and HTML-escaping a password
-// before it's hashed would silently change the password the user actually
-// set.
+// This file does NOT escape string values, and neither does the API
+// anywhere else: text is stored exactly as typed and HTML-encoded when it is
+// rendered (React does this for text content). Escaping on the way in would
+// be encoded a second time on the way out, and in this middleware it would
+// also silently change passwords before they are hashed.
 
 const DANGEROUS_KEY = /^\$|\./;
 
