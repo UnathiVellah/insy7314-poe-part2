@@ -42,16 +42,43 @@ const createTransaction = async (req, res, next) => {
             });
         }
 
-        const transaction = await Transaction.create({
-            booking: booking._id,
-            client: booking.client,
-            freelancer: booking.freelancer,
-            amountCents: booking.agreedPriceCents,
-            status: 'succeeded',
-            paymentMethod: 'simulated'
-        });
+        const transaction = await Transaction.findOneAndUpdate(
+            {
+                booking: booking._id,
+                client: req.user.id,
+                freelancer: booking.freelancer,
+                amountCents: booking.agreedPriceCents,
+                status: 'pending'
+            },
+            {
+                $set: {
+                    status: 'succeeded'
+                }
+            },
+            {
+                new: true,
+                runValidators: true
+            }
+        );
 
-        return res.status(201).json({
+        if (!transaction) {
+            const existingTransaction = await Transaction.findOne({
+                booking: booking._id,
+                client: req.user.id
+            }).lean();
+
+            if (existingTransaction?.status === 'succeeded') {
+                return res.status(409).json({
+                    error: 'Booking has already been paid'
+                });
+            }
+
+            return res.status(409).json({
+                error: 'Booking transaction is not available for payment'
+            });
+        }
+
+        return res.status(200).json({
             message: 'Simulated payment successful',
             data: {
                 ...transaction.toObject(),
@@ -59,14 +86,8 @@ const createTransaction = async (req, res, next) => {
             }
         });
     } catch (error) {
-        if (error.code === 11000) {
-            return res.status(409).json({
-                error: 'Booking has already been paid'
-            });
-        }
-
         next(error);
-    }    
+    }
 };
 
 // GET: /api/transactions/mine

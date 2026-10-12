@@ -1,166 +1,288 @@
 # HustleHub+ API Contract
 
-Base URL (local): `https://localhost:4000`
+**Local base URL:** `https://localhost:4000`
 
-All request and response bodies are JSON. Protected routes need the header
-`Authorization: Bearer <token>`, where the token comes from `POST /api/auth/login`.
+Requests and responses use JSON. Protected endpoints require `Authorization: Bearer <token>` using the JWT returned by `POST /api/auth/login`. Examples use illustrative MongoDB ObjectIds; replace them with actual IDs from your database.
 
-## Roles
+## Roles and ownership
 
-| Role | Can do |
+| Role | Access |
 |---|---|
-| `client` | Browse gigs, book gigs, view their own bookings and transactions |
-| `freelancer` | Create, update and delete their own gigs, view bookings on their gigs, view their own income |
-| `admin` | View all users, bookings and transactions. Cannot be chosen at registration. |
+| `client` | Browse active gigs; book gigs; manage permitted booking transitions; view own bookings and transactions; simulate payment for completed own bookings |
+| `freelancer` | Manage own gigs; view and update permitted bookings on their gigs; view income from succeeded payments |
+| `admin` | Reserved role; admin endpoints are **not confirmed implemented** by the supplied backend code. Users cannot choose this role at registration. |
 
-The role is stored in the JWT payload (`{ id, role }`) and checked on every protected request.
+The JWT carries user identity and role (`{ id, role }`). Protected routes validate the token and enforce role and/or resource ownership. Resource-specific lookups generally return `404` when a resource does not exist **or** is not accessible to the caller; wrong-role requests return `403`. A client attempting to book their own gig receives `403`.
 
-## Ownership rule
-
-A user can only read, change or delete resources they own. If a resource exists
-but belongs to someone else, the API answers `404 Not Found`, the same as for a
-resource that does not exist. This avoids revealing which ids are real.
-
-## Routes
-
-`Public` means no token. `Any` means any authenticated user.
-
-### Auth
+## Authentication
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| POST | `/api/auth/register` | Public | Create an account |
-| POST | `/api/auth/login` | Public | Log in and receive a JWT |
-| GET | `/api/auth/me` | Any | Return the current user |
+| POST | `/api/auth/register` | Public | Register a `client` or `freelancer` |
+| POST | `/api/auth/login` | Public | Obtain a JWT |
+| GET | `/api/auth/me` | Authenticated | Read current user |
 
-`POST /api/auth/register`
-
-```json
-{ "fullName": "Thandi Nkosi", "email": "thandi@example.com", "password": "Passw0rd!123", "role": "freelancer" }
-```
-
-`role` must be `client` or `freelancer`. Success: `201`
+**Register request:**
 
 ```json
-{ "message": "User registered successfully", "data": { "id": "u1", "fullName": "Thandi Nkosi", "email": "thandi@example.com", "role": "freelancer" } }
+{
+  "fullName": "Thandi Nkosi",
+  "email": "thandi@example.com",
+  "password": "Passw0rd!123",
+  "role": "freelancer"
+}
 ```
 
-`POST /api/auth/login`
+Successful registration returns `201`; successful login returns `200` with a token and user information. The exact authentication response fields should remain consistent with the implemented auth controller.
+
+**Login request:**
 
 ```json
 { "email": "thandi@example.com", "password": "Passw0rd!123" }
 ```
 
-Success: `200`
+Send the returned token as `Authorization: Bearer <token>` on protected requests. `GET /api/auth/me` returns the authenticated user's details.
 
-```json
-{ "message": "Login successful", "data": { "token": "<jwt>", "user": { "id": "u1", "fullName": "Thandi Nkosi", "email": "thandi@example.com", "role": "freelancer" } } }
-```
-
-`GET /api/auth/me` returns `200` with `{ "data": { "id", "fullName", "email", "role" } }`.
-
-### Gigs
+## Gigs
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | `/api/gigs` | Public | List active gigs (paginated) |
-| GET | `/api/gigs/mine` | `freelancer` | List the caller's own gigs, including inactive ones |
-| GET | `/api/gigs/:id` | Public | View one active gig |
-| POST | `/api/gigs` | `freelancer` | Create a gig (owner is the caller) |
-| PUT | `/api/gigs/:id` | `freelancer`, owner only | Update a gig |
-| DELETE | `/api/gigs/:id` | `freelancer`, owner only | Soft-delete a gig (sets `isActive: false`) |
+| GET | `/api/gigs` | Public | Paginated list of active gigs |
+| GET | `/api/gigs/mine` | `freelancer` | Own gigs, including inactive gigs |
+| GET | `/api/gigs/:id` | Public | View an active gig |
+| POST | `/api/gigs` | `freelancer` | Create an owned gig |
+| PUT | `/api/gigs/:id` | `freelancer`, owner | Update own gig |
+| DELETE | `/api/gigs/:id` | `freelancer`, owner | Soft-delete by setting `isActive: false` |
 
-Gig shape:
+**Example gig:**
 
 ```json
-{ "_id": "<mongoId>", "freelancer": "<mongoId>", "title": "Logo design", "description": "Three concepts and one revision", "category": "Design", "price": 500, "isActive": true, "createdAt": "2026-09-20T10:00:00.000Z", "updatedAt": "2026-09-20T10:00:00.000Z" }
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "freelancer": "507f191e810c19729de860ea",
+  "title": "Logo design",
+  "description": "Three concepts and one revision included",
+  "category": "Design",
+  "price": 500,
+  "isActive": true,
+  "createdAt": "2026-09-20T10:00:00.000Z",
+  "updatedAt": "2026-09-20T10:00:00.000Z"
+}
 ```
 
-`POST` bodies take all four of `title`, `description`, `category` and `price` - all required. `PUT` bodies take any subset of the same four fields. `price` is a positive number in ZAR with at most 2 decimal places. `title` is 5-100 characters, `description` is 20-2000 characters, `category` is 1-50 characters (free text, no fixed list). Text is stored exactly as typed; it is HTML-encoded when rendered (React does this), not on the way in.
+Creation requires `title`, `description`, `category`, and `price`. Updates accept supported fields. `price` is in ZAR; transaction amounts are stored separately in **integer cents**. The gig validation contract specifies title length 5–100, description length 20–2000, category length 1–50, and a positive price with no more than two decimal places. Text is HTML-escaped before storage.
 
-`GET /api/gigs` accepts `?page=` (default 1) and `?limit=` (default 10, max 50) query parameters and returns `{ "data": [...], "pagination": { "page", "limit", "total", "totalPages" } }`.
+`GET /api/gigs?page=1&limit=10` returns:
 
-`POST` returns `201` with `{ "message": "...", "data": <gig> }`. `GET`, `PUT` return `200` the same way; `DELETE` returns `200` with just a `message`.
+```json
+{
+  "data": [],
+  "pagination": { "page": 1, "limit": 10, "total": 0, "totalPages": 0 }
+}
+```
 
-### Bookings
+Default page is 1, default limit is 10, and maximum limit is 50. Gig creation returns `201`; reads and updates return `200`; soft deletion returns `200` with a message.
+
+## Booking and simulated-payment lifecycle
+
+**A transaction record is created for every new booking.** The transaction begins as `pending`; no real money is transferred. A client can simulate payment only after the freelancer completes the booking. That action updates the *existing* transaction to `succeeded` rather than inserting another transaction.
+
+| Action | Actor | Booking status | Transaction status |
+|---|---|---|---|
+| Create booking | Client | `pending` | `pending` (created automatically) |
+| Accept booking | Assigned freelancer | `accepted` | `pending` |
+| Complete booking | Assigned freelancer | `completed` | `pending` |
+| Simulate payment | Booking's client | `completed` | `succeeded` |
+| Cancel pending booking | Booking's client | `cancelled` | `cancelled` |
+
+Permitted booking transitions are **`pending → accepted`** (freelancer), **`accepted → completed`** (freelancer), and **`pending → cancelled`** (client). Other transitions are rejected. The booking and its initial transaction are created in one MongoDB multi-document transaction; booking cancellation and transaction cancellation are also atomic. MongoDB deployment must support multi-document transactions.
+
+### Booking routes
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| POST | `/api/bookings` | `client` | Book a gig. Creates a booking and its transaction. |
-| GET | `/api/bookings` | `client`, `freelancer`, `admin` | Client: own bookings. Freelancer: bookings on their gigs. Admin: all. |
+| POST | `/api/bookings` | `client` | Create booking plus pending transaction |
+| GET | `/api/bookings/mine` | `client` | List client's bookings |
+| GET | `/api/bookings/freelancer` | `freelancer` | List bookings assigned to freelancer |
+| GET | `/api/bookings/:id` | Booking client or assigned freelancer | View booking |
+| PATCH | `/api/bookings/:id/status` | Authorized actor for transition | Accept, complete, or cancel |
 
-> **For Person 2:** a `bookingLimiter` is already built and exported from
-> `middleware/rateLimiters.js` - apply it the same way `loginLimiter` is
-> applied in `routes/authRoutes.js`:
-> ```js
-> const { bookingLimiter } = require('../middleware/rateLimiters');
-> router.post('/', protect, authorize(ROLES.CLIENT), bookingLimiter, createBooking);
-> ```
-> See the Rate limits section below for the actual numbers.
-
-`POST /api/bookings` body: `{ "gigId": "uuid" }`. Success: `201`
+**Create booking** — `POST /api/bookings`:
 
 ```json
-{ "message": "Booking confirmed", "data": { "booking": { "id": "uuid", "ownerId": "u2", "gigId": "uuid", "freelancerId": "u1", "status": "confirmed", "createdAt": "..." }, "transaction": { "id": "uuid", "ownerId": "u1", "bookingId": "uuid", "clientId": "u2", "freelancerId": "u1", "amount": 500, "status": "simulated-paid", "createdAt": "..." } } }
+{ "gigId": "507f1f77bcf86cd799439011" }
 ```
 
-For a booking, `ownerId` is the client. For a transaction, `ownerId` is the freelancer who earned the income. Payment is simulated.
+Success: **`201 Created`**
 
-### Transactions and income
+```json
+{
+  "message": "Booking created successfully",
+  "data": {
+    "_id": "507f1f77bcf86cd799439021",
+    "gig": "507f1f77bcf86cd799439011",
+    "client": "507f191e810c19729de860eb",
+    "freelancer": "507f191e810c19729de860ea",
+    "agreedPriceCents": 50000,
+    "status": "pending",
+    "createdAt": "2026-10-12T12:00:00.000Z",
+    "updatedAt": "2026-10-12T12:00:00.000Z"
+  }
+}
+```
+
+The associated `pending` transaction is persisted in the database but **is not embedded in the booking response**. The client can retrieve it via `GET /api/transactions/mine`. The server calculates `agreedPriceCents` from the gig's price; clients cannot set the amount, freelancer, or booking status when creating a booking. Only active gigs can be booked, and a user cannot book their own gig.
+
+**List bookings** — `GET /api/bookings/mine` and `GET /api/bookings/freelancer` both return `200` with `{ "data": [ ... ] }` containing booking objects. `GET /api/bookings/:id` returns `200` with `{ "data": { ... } }`. In the supplied controllers, `gig` is an ObjectId, **not a populated gig title**.
+
+**Update booking status** — `PATCH /api/bookings/:id/status`:
+
+```json
+{ "status": "accepted" }
+```
+
+Success: `200` with `{ "message": "Booking status updated successfully", "data": { ...booking } }`. For cancellation, send `{ "status": "cancelled" }`; the linked pending transaction becomes `cancelled` atomically. Invalid transition values return `400`; unauthorized/non-applicable transitions return `404` under the current controller.
+
+### Transaction and income routes
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | `/api/transactions` | `client`, `freelancer`, `admin` | Client: payments made. Freelancer: payments received. Admin: all. |
-| GET | `/api/transactions/income` | `freelancer` | Income summary for the caller |
+| POST | `/api/transactions` | `client` | Simulate payment for own completed booking; update pending transaction |
+| GET | `/api/transactions/mine` | `client` | List own transactions of **all statuses** |
+| GET | `/api/transactions/income` | `freelancer` | Income summary from succeeded transactions only |
+| GET | `/api/transactions/:id` | Transaction client or freelancer | View associated transaction |
 
-`GET /api/transactions/income` returns `200`
+**Simulate payment** — `POST /api/transactions`:
 
 ```json
-{ "data": { "totalIncome": 1500, "transactionCount": 3, "transactions": [] } }
+{ "bookingId": "507f1f77bcf86cd799439021" }
 ```
 
-### Admin
+Success: **`200 OK`** (not `201`, because the transaction already exists):
 
-| Method | Path | Access | Purpose |
-|---|---|---|---|
-| GET | `/api/admin/users` | `admin` | List all users (never includes password hashes) |
+```json
+{
+  "message": "Simulated payment successful",
+  "data": {
+    "_id": "507f1f77bcf86cd799439031",
+    "booking": "507f1f77bcf86cd799439021",
+    "client": "507f191e810c19729de860eb",
+    "freelancer": "507f191e810c19729de860ea",
+    "amountCents": 50000,
+    "status": "succeeded",
+    "paymentMethod": "simulated",
+    "createdAt": "2026-10-12T12:00:00.000Z",
+    "updatedAt": "2026-10-12T13:00:00.000Z",
+    "amountFormatted": "R500.00"
+  }
+}
+```
+
+Payment requires the booking to be `completed` and owned by the authenticated client. The server verifies the linked transaction and its original amount; client-supplied amounts or extra body fields are rejected with `400`. Payment is an atomic `pending → succeeded` update. Repeated payments return `409` (`Booking has already been paid`); unavailable or inconsistent payment records return `409`. A booking that is not a completed booking belonging to the caller returns `404` (`Completed booking not found`). The unique index on `Transaction.booking` enforces **one transaction record per booking**.
+
+**Client transaction list** — `GET /api/transactions/mine` returns `200`:
+
+```json
+{
+  "data": [
+    {
+      "_id": "507f1f77bcf86cd799439031",
+      "booking": "507f1f77bcf86cd799439021",
+      "client": "507f191e810c19729de860eb",
+      "freelancer": "507f191e810c19729de860ea",
+      "amountCents": 50000,
+      "status": "succeeded",
+      "paymentMethod": "simulated",
+      "amountFormatted": "R500.00"
+    }
+  ]
+}
+```
+
+This list includes `pending`, `succeeded`, and `cancelled` transactions. Full records also include Mongoose timestamps. `GET /api/transactions/:id` returns a single transaction in `{ "data": { ... } }`, including `amountFormatted`.
+
+**Freelancer income** — `GET /api/transactions/income` returns `200`:
+
+```json
+{
+  "data": {
+    "totalIncomeCents": 150000,
+    "totalIncomeFormatted": "R1,500.00",
+    "completedPayments": 3,
+    "currency": "ZAR",
+    "transactions": [
+      {
+        "_id": "507f1f77bcf86cd799439031",
+        "booking": "507f1f77bcf86cd799439021",
+        "amountCents": 50000,
+        "status": "succeeded",
+        "createdAt": "2026-10-12T12:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+The summary and transaction list include **only `succeeded` transactions**. Pending and cancelled transactions do not contribute to income. Income records are limited to the authenticated freelancer. `totalIncomeCents` is an integer amount in cents, not rand.
 
 ## Response format
 
-Successful responses use `{ "message": "...", "data": ... }`. `message` is
-optional. Errors always use a single field:
+Successful responses generally use `{ "message": "...", "data": ... }`; `message` may be omitted. Paginated gig lists additionally include `pagination`.
+
+Errors use:
 
 ```json
 { "error": "Human readable message" }
 ```
 
-Error messages never contain stack traces, file paths, or configuration values.
+Do not expose stack traces, secrets, internal file paths, or configuration values in production error responses.
 
 ## Status codes
 
-| Code | Meaning | Example |
+| Code | Meaning | Examples |
 |---|---|---|
-| 200 | OK | Login, reads, updates, deletes |
-| 201 | Created | Register, create gig, create booking |
-| 400 | Validation failed | Missing field, wrong type, invalid email, `role` not `client` or `freelancer` |
-| 401 | Not authenticated | Missing, invalid or expired token. Wrong login credentials. |
-| 403 | Authenticated but wrong role | A client calling `POST /api/gigs` |
-| 404 | Not found, or not yours | Unknown route or id, or another user's gig |
-| 409 | Conflict | Email already registered |
-| 429 | Too many requests | Rate limit hit on login, register or booking |
-| 500 | Server error | Generic message only |
-
-`401` versus `403`: `401` means the API does not know who you are, `403` means it
-does but your role is not allowed to do that.
+| `200` | Success | Login, reads, updates, simulated payment |
+| `201` | Created | Register, create gig, create booking |
+| `400` | Invalid request | Invalid ObjectId, unexpected fields, invalid transition |
+| `401` | Unauthenticated | Missing, invalid, or expired token |
+| `403` | Forbidden | Wrong role; attempting to book own gig |
+| `404` | Not found or inaccessible | Missing resource, another user's resource, disallowed booking transition |
+| `409` | Conflict | Duplicate email; duplicate or unavailable simulated payment |
+| `429` | Rate limited | Login, registration, booking creation, simulated payment |
+| `500` | Server error | Generic server failure |
 
 ## Rate limits
 
-All limits are per IP address and return `429` with `{ "error": "Too many requests. Please try again later." }`, the same error shape as every other failure.
+Implemented with `express-rate-limit` in `middleware/rateLimiters.js`. With the current default configuration, keys are based on client IP (subject to Express proxy configuration). All limiters return `429`:
 
-| Endpoint | Limit | Window | Why |
+```json
+{ "error": "Too many requests. Please try again later." }
+```
+
+| Endpoint | Limit | Window | Notes |
 |---|---|---|---|
-| `POST /api/auth/login` | 10 **failed** attempts | 15 minutes | Slows down credential stuffing / brute force. Successful logins don't count, so a user who mistypes their password a couple of times is never penalised. |
-| `POST /api/auth/register` | 20 attempts | 1 hour | Deters automated mass account creation and email-enumeration via the `409` response. |
-| `POST /api/bookings` | 30 attempts | 15 minutes | Stops a single account from hammering the booking/payment-simulation flow. Looser than login's, since this guards a normal authenticated action, not a credential check. |
+| `POST /api/auth/login` | 10 failed requests | 15 minutes | Successful requests are excluded (`skipSuccessfulRequests`) |
+| `POST /api/auth/register` | 20 requests | 1 hour | Discourages mass registrations |
+| `POST /api/bookings` | 30 requests | 15 minutes | Applied after authentication and client role check |
+| `POST /api/transactions` | 20 requests | 15 minutes | Applied after authentication and client role check |
 
-Implemented in `middleware/rateLimiters.js` using `express-rate-limit`.
+The booking and payment limits above assume the route updates discussed for this implementation have been applied. A future improvement is user-ID-based keys for authenticated routes, with careful IPv6/proxy handling.
+
+## Frontend integration notes
+
+- MongoDB documents use `_id`, not `id`; `gig`, `booking`, `client`, and `freelancer` references are ObjectId strings in the supplied controllers.
+- Booking amounts use `agreedPriceCents`; transaction amounts use `amountCents`; income uses `totalIncomeCents`. Divide by 100 to display ZAR.
+- The gig listing is paginated and only includes active gigs. Booking responses currently **do not populate gig title**; do not assume a `gigTitle` field exists.
+- The payment endpoint returns `200`, not `201`.
+- Booking creation returns a **booking**, not a `{ booking, transaction }` pair.
+- The client transaction list includes pending and cancelled records, but freelancer income includes succeeded records only.
+- There is no `GET /api/bookings` or `GET /api/transactions` endpoint in the supplied route files; use the role-specific routes above.
+- The previously documented `/api/admin/users` route has **not been verified** in the supplied backend and should not be used by the frontend until implemented and checked.
+
+## Testing and deployment notes
+
+- Run Postman/Newman tests for the full booking → acceptance → completion → payment sequence, cancellation, unauthorized access, invalid IDs, tampered amounts, duplicate payments, and rate limits.
+- Update existing Postman payment success assertions from `201` to `200`.
+- Create **fresh test bookings** after deploying the new lifecycle: older bookings may not have a linked pending transaction. Do not silently fabricate payments for historical records.
+- Ensure MongoDB supports multi-document transactions and the unique index on `Transaction.booking` is present.
+- This is a **simulated** payment flow. It does not charge cards, process real funds, or guarantee settlement.

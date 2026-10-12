@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { bookingLimiter } = require('../middleware/rateLimiters');
 
 const {
     createBooking,
@@ -24,7 +25,7 @@ const requireRole = role => (req, res, next) => {
 
 router.use(protect);
 
-router.post('/', requireRole(ROLES.CLIENT), createBooking);
+router.post('/', requireRole(ROLES.CLIENT), bookingLimiter, createBooking);
 
 router.get('/mine', requireRole(ROLES.CLIENT), getMyBookings);
 
