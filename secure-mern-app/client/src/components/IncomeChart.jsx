@@ -1,4 +1,4 @@
-import { formatPrice } from '../utils/format'
+import { formatCents } from '../utils/format'
 
 const WIDTH = 600
 const HEIGHT = 260
@@ -6,7 +6,8 @@ const PADDING = 24
 const BASELINE = 210
 const MAX_BAR_HEIGHT = 160
 
-// A bar chart of income per month, drawn as SVG so it needs no chart library.
+// A bar chart of income per month (totals in cents), drawn as SVG so it needs
+// no chart library.
 // Colours and fonts come from the stylesheet (classes), not inline styles.
 //
 // The chart is a picture, so it gets a text description for screen readers.
@@ -21,7 +22,7 @@ function IncomeChart({ months }) {
   const barWidth = Math.min(80, slot * 0.6)
 
   const description = `Income per month: ${months
-    .map((month) => `${month.label} ${formatPrice(month.total)}`)
+    .map((month) => `${month.label} ${formatCents(month.total)}`)
     .join(', ')}`
 
   return (
@@ -43,7 +44,7 @@ function IncomeChart({ months }) {
           <g key={month.key} data-testid="chart-bar">
             <rect className="chart-bar" x={x} y={y} width={barWidth} height={height} rx="4" />
             <text className="chart-value" x={centre} y={y - 8} textAnchor="middle">
-              {formatPrice(month.total)}
+              {formatCents(month.total)}
             </text>
             <text className="chart-label" x={centre} y={BASELINE + 22} textAnchor="middle">
               {month.label}

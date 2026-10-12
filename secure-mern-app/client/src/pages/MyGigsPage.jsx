@@ -1,30 +1,31 @@
 import { useEffect, useState } from 'react'
+import GigCard from '../components/GigCard'
 import GigForm from '../components/GigForm'
 import ManageGigCard from '../components/ManageGigCard'
 import StatusMessage from '../components/StatusMessage'
-import { useAuth } from '../context/useAuth'
 import * as gigService from '../services/gigService'
 
 const newestFirst = (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
 
-// Freelancers manage their own gigs here. The API has no "my gigs" endpoint,
-// so the page loads every gig and keeps the ones this user owns. The API still
-// checks ownership on every create, update and delete.
+// Freelancers manage their own gigs here. The API's "my gigs" list is only
+// ever the logged-in freelancer's, and it includes gigs they have removed.
+// Removed gigs are hidden unless asked for, and cannot be edited again.
+// The API still checks ownership on every create, update and delete.
 function MyGigsPage() {
-  const { user } = useAuth()
   const [gigs, setGigs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [creating, setCreating] = useState(false)
+  const [showRemoved, setShowRemoved] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
     gigService
-      .listGigs()
+      .listMyGigs()
       .then((data) => {
-        if (!cancelled) setGigs(data.filter((gig) => gig.ownerId === user.id).sort(newestFirst))
+        if (!cancelled) setGigs([...data].sort(newestFirst))
       })
       .catch((err) => {
         if (!cancelled) setError(err.message)
@@ -36,7 +37,10 @@ function MyGigsPage() {
     return () => {
       cancelled = true
     }
-  }, [user.id])
+  }, [])
+
+  const activeGigs = gigs.filter((gig) => gig.isActive)
+  const removedGigs = gigs.filter((gig) => !gig.isActive)
 
   const handleCreate = async (values) => {
     const created = await gigService.createGig(values)
@@ -51,10 +55,11 @@ function MyGigsPage() {
     setNotice('Your gig has been updated.')
   }
 
+  // The API only hides a removed gig, so it stays in the list as inactive.
   const handleDelete = async (id) => {
     await gigService.deleteGig(id)
-    setGigs((current) => current.filter((gig) => gig.id !== id))
-    setNotice('Your gig has been deleted.')
+    setGigs((current) => current.map((gig) => (gig.id === id ? { ...gig, isActive: false } : gig)))
+    setNotice('Your gig has been deleted. Existing bookings are not affected.')
   }
 
   return (
@@ -96,15 +101,36 @@ function MyGigsPage() {
         </div>
       )}
 
-      {!loading && !error && gigs.length === 0 && !creating && (
-        <p className="muted">You have not created any gigs yet. Choose New gig to add your first one.</p>
+      {!loading && !error && activeGigs.length === 0 && !creating && (
+        <p className="muted">You have no live gigs. Choose New gig to add one.</p>
       )}
 
-      {!loading && !error && gigs.length > 0 && (
+      {!loading && !error && activeGigs.length > 0 && (
         <div className="gig-grid">
-          {gigs.map((gig) => (
+          {activeGigs.map((gig) => (
             <ManageGigCard key={gig.id} gig={gig} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
+        </div>
+      )}
+
+      {!loading && !error && removedGigs.length > 0 && (
+        <div className="removed-gigs">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            aria-expanded={showRemoved}
+            onClick={() => setShowRemoved(!showRemoved)}
+          >
+            {showRemoved ? 'Hide' : 'Show'} deleted gigs ({removedGigs.length})
+          </button>
+
+          {showRemoved && (
+            <div className="gig-grid">
+              {removedGigs.map((gig) => (
+                <GigCard key={gig.id} gig={gig} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>

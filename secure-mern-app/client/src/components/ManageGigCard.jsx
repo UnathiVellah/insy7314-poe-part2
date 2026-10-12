@@ -56,7 +56,8 @@ function ManageGigCard({ gig, onUpdate, onDelete }) {
       <GigCard gig={gig}>
         <div className="booking-confirm">
           <p>
-            Delete <strong>{gig.title}</strong>? This cannot be undone.
+            Delete <strong>{gig.title}</strong>? Clients will no longer see it, but existing bookings are not
+            affected.
           </p>
 
           <StatusMessage type="error" message={error} />

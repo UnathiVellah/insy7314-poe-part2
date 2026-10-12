@@ -5,7 +5,7 @@ import GigForm from './GigForm'
 
 const fillForm = async (
   user,
-  { title = 'Logo design', description = 'Three concepts', category = 'Design', price = '500' } = {},
+  { title = 'Logo design', description = 'Three concepts and one revision', category = 'Design', price = '500' } = {},
 ) => {
   await user.type(screen.getByLabelText('Title'), title)
   await user.type(screen.getByLabelText('Description'), description)
@@ -36,7 +36,7 @@ describe('GigForm', () => {
     await fillForm(user, { price: '-5' })
     await user.click(screen.getByRole('button', { name: 'Create gig' }))
 
-    expect(screen.getByText(/greater than 0/i)).toBeInTheDocument()
+    expect(screen.getByText(/at least 1/i)).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
@@ -47,7 +47,7 @@ describe('GigForm', () => {
 
     await fillForm(user, {
       title: '  Logo design  ',
-      description: '  Three concepts  ',
+      description: '  Three concepts and one revision  ',
       category: '  Design  ',
       price: '500',
     })
@@ -55,18 +55,18 @@ describe('GigForm', () => {
 
     expect(onSubmit).toHaveBeenCalledWith({
       title: 'Logo design',
-      description: 'Three concepts',
+      description: 'Three concepts and one revision',
       category: 'Design',
       price: 500,
     })
   })
 
   it('starts with the gig values filled in when editing', () => {
-    const gig = { id: 'g1', title: 'Logo design', description: 'Three concepts', category: 'Design', price: 500 }
+    const gig = { id: 'g1', title: 'Logo design', description: 'Three concepts and one revision', category: 'Design', price: 500 }
     render(<GigForm initialValues={gig} submitLabel="Save changes" onSubmit={() => {}} onCancel={() => {}} />)
 
     expect(screen.getByLabelText('Title')).toHaveValue('Logo design')
-    expect(screen.getByLabelText('Description')).toHaveValue('Three concepts')
+    expect(screen.getByLabelText('Description')).toHaveValue('Three concepts and one revision')
     expect(screen.getByLabelText('Category')).toHaveValue('Design')
     expect(screen.getByLabelText('Price (ZAR)')).toHaveValue(500)
   })

@@ -5,13 +5,13 @@ import StatusMessage from '../components/StatusMessage'
 import * as bookingService from '../services/bookingService'
 import * as gigService from '../services/gigService'
 import * as transactionService from '../services/transactionService'
-import { describePayment } from '../utils/bookings'
-import { formatDate, formatPrice } from '../utils/format'
-import { averageIncome, buildIncomeRows, groupIncomeByMonth } from '../utils/income'
+import { formatCents, formatDate } from '../utils/format'
+import { averageIncomeCents, buildIncomeRows, groupIncomeByMonth } from '../utils/income'
 
 // Where a freelancer sees the money their gigs have earned. The figures come
 // from the API's income summary, which only ever covers the logged-in
-// freelancer. Payments are simulated, so these are records, not real money.
+// freelancer and only counts bookings the client has paid for. Payments are
+// simulated, so these are records, not real money.
 function IncomePage() {
   const [income, setIncome] = useState(null)
   const [rows, setRows] = useState([])
@@ -21,7 +21,11 @@ function IncomePage() {
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([transactionService.getIncome(), bookingService.listBookings(), gigService.listGigs()])
+    Promise.all([
+      transactionService.getIncome(),
+      bookingService.listFreelancerBookings(),
+      gigService.listMyGigs(),
+    ])
       .then(([summary, bookings, gigs]) => {
         if (cancelled) return
         setIncome(summary)
@@ -39,13 +43,13 @@ function IncomePage() {
     }
   }, [])
 
-  const hasIncome = income !== null && income.transactionCount > 0
+  const hasIncome = income !== null && income.completedPayments > 0
 
   return (
     <section>
       <div className="page-header">
         <h1>Income</h1>
-        <p>What your gigs have earned from client bookings. Payments are simulated.</p>
+        <p>What your gigs have earned from paid bookings. Payments are simulated.</p>
       </div>
 
       <StatusMessage type="error" message={error} />
@@ -55,19 +59,23 @@ function IncomePage() {
       {!loading && !error && income && (
         <>
           <div className="stat-grid">
-            <StatCard label="Total income" value={formatPrice(income.totalIncome)} />
-            <StatCard label="Bookings" value={String(income.transactionCount)} hint="Paid bookings on your gigs" />
+            <StatCard label="Total income" value={formatCents(income.totalIncomeCents)} />
+            <StatCard
+              label="Paid bookings"
+              value={String(income.completedPayments)}
+              hint="Bookings a client has paid for"
+            />
             <StatCard
               label="Average per booking"
-              value={formatPrice(averageIncome(income))}
-              hint={hasIncome ? undefined : 'Appears after your first booking'}
+              value={formatCents(averageIncomeCents(income))}
+              hint={hasIncome ? undefined : 'Appears after your first payment'}
             />
           </div>
 
           {!hasIncome && (
             <p className="muted">
-              You have not earned anything yet. When a client books one of your gigs, the payment appears
-              here.
+              You have not earned anything yet. Income appears here once a client has booked one of your gigs, you
+              have completed the work, and the client has paid.
             </p>
           )}
 
@@ -87,9 +95,8 @@ function IncomePage() {
                     <thead>
                       <tr>
                         <th scope="col">Gig</th>
-                        <th scope="col">Date</th>
+                        <th scope="col">Paid on</th>
                         <th scope="col">Amount</th>
-                        <th scope="col">Payment</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -97,8 +104,7 @@ function IncomePage() {
                         <tr key={row.id}>
                           <td>{row.gigTitle ?? 'Gig no longer available'}</td>
                           <td>{formatDate(row.createdAt)}</td>
-                          <td className="amount">{formatPrice(row.amount)}</td>
-                          <td>{describePayment(row.status)}</td>
+                          <td className="amount">{formatCents(row.amountCents)}</td>
                         </tr>
                       ))}
                     </tbody>
