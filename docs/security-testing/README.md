@@ -51,17 +51,15 @@
 The authenticated ZAP report is `raw/zap-2-auth-baseline.html`; its JWT and test password were
 replaced by `[REDACTED-JWT]` and `[REDACTED-PASSWORD]` before filing.
 
-### Still to capture (after the fix pack, into `evidence/after/`)
+## Screenshot index (after the fixes, `evidence/after/`)
 
-| ID | Shows |
-|----|-------|
-| S28 | `npm audit` in `api` after `npm ci`: 0 vulnerabilities (F-02) |
-| S29 | Postman: `?limit=101` returns 400 and the default list returns `pagination` (C-02) |
-| S30 | Nmap `ssl-enum-ciphers` after the fix: no `TLS_RSA_WITH_*` suites (F-01); text in `raw/nmap-3-tls-after.txt` |
-| S31 | Freelancer token on `GET /api/bookings/mine`: 403 with the shared `authorize()` message (C-04) |
-| S32 | Max's suite in the Postman Runner after the fix pack (regression) |
+| ID | File | Shows |
+|----|------|-------|
+| S28 | `S28_npm-audit-api-after.png` | `npm ci` then `npm audit` in `api`: 0 vulnerabilities (F-02 closed) |
+| S30 | `S30_nmap-tls-after.png` | Nmap `ssl-enum-ciphers`: TLS 1.2 only ECDHE AEAD suites, TLS 1.3 unchanged (F-01 closed); text in `raw/nmap-3-tls-after.txt` |
 
-Optional: a second ZAP scan with the limiters raised locally (`raw/zap-3-auth-nolimit.html`), not planned.
+S29, S31 and S32 (Postman retests of C-02 and C-04, and a rerun of Max's suite) were skipped by
+choice; C-02 and C-04 are recorded as "verified by script, not retested on the team machine".
 
 Screenshots are redacted where they showed a JWT or a test password. Never commit a real token,
 `.env` content, a database connection string or a private key.

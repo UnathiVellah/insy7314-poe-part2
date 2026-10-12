@@ -8,7 +8,7 @@ CVSS, affected component, remediation, reference, status. A finding is only
 - Raw tool output: `raw/`. Every run is logged in `TESTING_LOG.md`.
 - Severity bands (CVSS v3.1): 0.1-3.9 Low, 4.0-6.9 Medium, 7.0-8.9 High, 9.0-10.0 Critical.
 - Status values: Open, Candidate (found in code review, evidence still to be captured),
-  Fixed (untested), **Closed (retested)**, Accepted risk.
+  Fixed (untested), Fixed (verified by script, not retested on the team machine), **Closed (retested)**, Accepted risk, False positive.
 
 **Round 1 (pre-merge) baseline:** the Part 2 code on branch `Auth-&-security---Luis` at commit
 `725c5ef`, tested on 2026-10-12 (screenshots S01-S14b).
@@ -25,12 +25,12 @@ the exact baseline commit for every round 2 run.
 
 | ID | Title | Found by | Severity | CVSS | Status |
 |----|-------|----------|----------|------|--------|
-| F-01 | TLS 1.2 accepts cipher suites without forward secrecy | Nmap | Low | 3.7 | **Fixed**, retest pending |
-| F-02 | Vulnerable development dependencies (Newman toolchain): 23 advisories, none in production dependencies | npm audit | Tool: Critical; contextual: Low | per advisory | **Fixed**, retest pending |
+| F-01 | TLS 1.2 accepts cipher suites without forward secrecy | Nmap | Low | 3.7 | **Closed** (retested, S30) |
+| F-02 | Vulnerable development dependencies (Newman toolchain): 23 advisories, none in production dependencies | npm audit | Tool: Critical; contextual: Low | per advisory | **Closed** (retested, S28) |
 | C-01 | No rate limit on `POST /api/bookings` and `POST /api/transactions` | Code review | Medium (est.) | 4.3 (est.) | **Closed** (retested, S18, S19) |
-| C-02 | List endpoints return unbounded result sets | Code review | Low (est.) | 2.7-4.3 (est.) | **Fixed**, retest pending |
+| C-02 | List endpoints return unbounded result sets | Code review | Low (est.) | 2.7-4.3 (est.) | **Fixed** (verified by script, not retested on the team machine) |
 | C-03 | MongoDB Atlas network allow-list is `0.0.0.0/0` | Configuration review | Medium (est.) | to score | Candidate (evidence S17; fix pending) |
-| C-04 | Duplicated route-local role check in booking and transaction routes | Code review | Informational | n/a | **Fixed**, retest pending |
+| C-04 | Duplicated route-local role check in booking and transaction routes | Code review | Informational | n/a | **Fixed** (verified by script, not retested on the team machine) |
 | I-01 | Self-signed development certificate | Nmap | Informational | n/a | Accepted risk (dev only) |
 | I-04 | ZAP: "Re-examine Cache-control Directives" on `GET /health` | OWASP ZAP | Informational | n/a | False positive (header is `no-store`) |
 | I-05 | ZAP: "Authentication Request Identified" and "Session Management Response Identified" on `POST /api/auth/login` | OWASP ZAP | Informational | n/a | Not a vulnerability (ZAP's own text) |
@@ -77,7 +77,15 @@ final merge (R-01, R-02) are recorded in section 5; they are not counted as vuln
   `nmap -sV --script ssl-enum-ciphers -p 4000 127.0.0.1 -oN docs/security-testing/raw/nmap-3-tls-after.txt`.
   Pass condition: no `TLS_RSA_WITH_*` suites listed; TLS 1.3 unchanged; login and
   `/health` still work over HTTPS. Screenshot to `evidence/after/S30_nmap-tls-after.png`.
-- **Status:** Fixed in code; Closed once the Nmap retest is filed.
+- **Retest result (2026-10-12 23:00 SAST, Luis's machine, same command as the baseline, fix pack
+  applied):** TLSv1.2 offers only `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`,
+  `TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256` and `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`
+  (all grade A, cipher preference: server); no `TLS_RSA_WITH_*` suite remains; TLSv1.3 still offers
+  its three suites; least strength A. Before: 19 TLS 1.2 suites, 10 of them static RSA
+  (`evidence/before/S04c_*`, `raw/nmap-3-tls.txt`). After: 3 suites, all ECDHE with AEAD
+  (`evidence/after/S30_nmap-tls-after.png`, `raw/nmap-3-tls-after.txt`). The API started and
+  served the scan normally.
+- **Status:** Closed (retested).
 
 ### F-02: Vulnerable development dependencies (Newman toolchain)
 
@@ -116,8 +124,13 @@ final merge (R-01, R-02) are recorded in section 5; they are not counted as vuln
 - **Retest (planned):** in `secure-mern-app/api` run `npm ci`, then `npm audit` (expect 0) and save
   `evidence/after/S28_npm-audit-api-after.png`; run Max's collection in the Postman Runner again
   (expect the same 103 of 104).
-- **Status:** Fixed in code; Closed once the retest is filed. Open item for the team: Max added
-  the two packages, so tell her they were removed and why. The S20 screenshot shows only the tail of the output (the
+- **Retest result (2026-10-12 about 22:58 SAST, Luis's machine):** `npm ci` in `secure-mern-app/api`
+  installed 110 packages (audited 111) and `npm audit` reports `found 0 vulnerabilities`
+  (`evidence/after/S28_npm-audit-api-after.png`). Before: 23 (1 critical, 15 high, 7 moderate),
+  `evidence/before/S20_npm-audit-api-full.png`. Max's Newman collection was not rerun after the
+  change (not needed: it runs in the Postman Runner, which does not use the removed packages).
+- **Status:** Closed (retested). Open item for the team: Max added the two packages, so tell her
+  they were removed and why. The S20 screenshot shows only the tail of the output (the
   `underscore` and `uuid` advisories and the totals); the full list is in `raw/npm-audit-api-2.txt`.
 
 ## 3. Candidates to verify (code review observations)
@@ -181,7 +194,9 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
   `400 Invalid pagination parameters`; `GET /api/bookings/mine` -> `200` with a `pagination`
   object (`S29_list-pagination.png`). As the admin, `GET /api/admin/users?limit=1` -> one user
   and `pagination.total` equal to the number of accounts. Max's suite must still pass.
-- **Status:** Fixed in code; Closed once the retest is filed.
+- **Retest:** not done on the team machine (decision by Luis, 2026-10-12). Evidence is the
+  sandbox script run recorded in `TESTING_LOG.md` rows 36-39.
+- **Status:** Fixed (verified by script, not retested on the team machine).
 
 ### C-03: Atlas network allow-list is `0.0.0.0/0`
 
@@ -218,7 +233,10 @@ Code references are to the final merged base (commit `0e9d99f`), 2026-10-12.
 - **Retest (on your machine):** Max's suite (its role-denial checks assert the status 403 only)
   and `GET https://localhost:4000/api/bookings/mine` with the freelancer token ->
   `403` with the new message (screenshot `evidence/after/S31_booking-role-403.png`).
-- **Status:** Fixed in code; Closed once the retest is filed.
+- **Retest:** not done on the team machine (decision by Luis, 2026-10-12). Evidence is the
+  sandbox script run recorded in `TESTING_LOG.md` rows 36-39 (8 wrong-role requests return the
+  shared 403 body).
+- **Status:** Fixed (verified by script, not retested on the team machine).
 
 ## 4. Informational and accepted
 
@@ -418,6 +436,6 @@ Still to capture:
   The screenshots do not show which account the token belongs to.
 
 The fixes for F-01, F-02, C-02 and C-04 are applied in the code (fix pack). Repeat each test on
-your machine, add the "after" screenshots to `evidence/after/` (S28 npm audit, S29 paging, S30 Nmap
-TLS, S31 role 403), and set the entries to **Closed**. C-03 (Atlas allow-list) is changed at the
+your machine, add the "after" screenshots to `evidence/after/` (done: S28 `npm audit`, S30 Nmap TLS;
+not done by choice: S29 paging, S31 role 403, S32 suite rerun). C-03 (Atlas allow-list) is changed at the
 end, together with rotating the Atlas password and `JWT_SECRET`.

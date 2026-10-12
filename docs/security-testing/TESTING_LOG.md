@@ -75,6 +75,11 @@ The exact times of rows 25-30 were not noted; the screenshots were sent at 20:27
 | 34 | ≈22:00-22:08 | Postman Runner through ZAP proxy `127.0.0.1:8080` | Max's suite, environment `HustleHub Local - Full Suite` | full run, then ZAP Replacer rule `Authorization: Bearer <client token>` | - | S27 (Sites tree) | ZAP learned 67 endpoints. A port-8080 conflict while saving ZAP's proxy options was caused by ZAP already listening there (`javaw.exe`) |
 | 35 | ≈22:08-22:14 | OWASP ZAP 2.17.0 | `https://localhost:4000` | Active Scan, default context, policy `Dev Standard`, authenticated by the Replacer rule | `raw/zap-2-auth-baseline.html` (JWT and test password redacted) | S25, S26, S27 | 3 Informational alert types, no Low/Medium/High (**I-04**, **I-05**, **I-06**). 94% of responses 4xx (rate limiters answered 429; admin routes 403), only 5% 2xx. S27 shows the scan at 30% (2461 requests); completion not recorded |
 
+| # | Time | Tool | Target | Command or request | Raw output | Evidence | Result |
+|---|------|------|--------|--------------------|-----------|----------|--------|
+| 40 | ≈22:58 | npm | `secure-mern-app/api` | `npm ci`, then `npm audit` (fix pack applied) | - | S28 (after) | 110 packages added, 111 audited, **0 vulnerabilities** (was 23). **F-02 closed** |
+| 41 | 23:00 | Nmap 7.991 | `127.0.0.1:4000` | `nmap -sV --script ssl-enum-ciphers -p 4000 127.0.0.1 -oN ..\..\docs\security-testing\raw\nmap-3-tls-after.txt` | `raw/nmap-3-tls-after.txt` | S30 (after) | TLSv1.2: 3 ECDHE-RSA AEAD suites, no `TLS_RSA_WITH_*`; TLSv1.3 unchanged; least strength A. **F-01 closed** |
+
 Rows 36-39 were run by Claude in a review sandbox on the fix-pack code, not on your machine: they have
 **no screenshots** and are not the retest evidence. The retests on your machine are listed under
 "Planned".
@@ -91,8 +96,6 @@ Rows 36-39 were run by Claude in a review sandbox on the fix-pack code, not on y
 | What | Why | Evidence name | Notes |
 |------|-----|---------------|-------|
 | Second ZAP authenticated scan with limiter thresholds raised locally (not committed) | First scan was 94% 4xx, so the authenticated routes were barely tested | `raw/zap-3-auth-nolimit.html` | Restore `rateLimiters.js` afterwards; state in the report that the limiters were verified separately (S12, S18, S19) |
-| `npm ci` then `npm audit` in `api` | Retest F-02 | `evidence/after/S28_npm-audit-api-after.png` | Expect 0 |
-| Postman: `GET /api/bookings/mine?limit=101` (400) and without the parameter (200 with `pagination`) | Retest C-02 | `evidence/after/S29_list-pagination.png` | Client token |
-| `nmap -sV --script ssl-enum-ciphers -p 4000 127.0.0.1 -oN docs/security-testing/raw/nmap-3-tls-after.txt` | Retest F-01 | `evidence/after/S30_nmap-tls-after.png`, `raw/nmap-3-tls-after.txt` | Restart the API first; expect no `TLS_RSA_WITH_*` suites |
-| Postman: `GET /api/bookings/mine` with the freelancer token | Retest C-04 | `evidence/after/S31_booking-role-403.png` | Expect 403 with the new message |
-| Max's suite in the Postman Runner, after the fix pack | Regression | `evidence/after/S32_newman-suite-after.png` | Expect 103 of 104 (the R-01 test) |
+| Postman: `GET /api/bookings/mine?limit=101` (expect 400) and without the parameter (200 with `pagination`) | Retest C-02 | `evidence/after/S29_list-pagination.png` | Optional; skipped by choice, C-02 is recorded as verified by script |
+| Postman: `GET /api/bookings/mine` with the freelancer token (expect 403 with the new message) | Retest C-04 | `evidence/after/S31_booking-role-403.png` | Optional; skipped by choice |
+| Max's suite in the Postman Runner, after the fix pack | Regression | `evidence/after/S32_newman-suite-after.png` | Optional; expect 103 of 104 |

@@ -1,0 +1,25 @@
+# Nmap 7.991 scan initiated Mon Oct 12 23:00:47 2026 as: "C:\\Program Files (x86)\\Nmap\\nmap.exe" -sV --script ssl-enum-ciphers -p 4000 -oN ..\\..\\docs\\security-testing\\raw\\nmap-3-tls-after.txt 127.0.0.1
+Nmap scan report for localhost (127.0.0.1)
+Host is up (0.0020s latency).
+
+PORT     STATE SERVICE         VERSION
+4000/tcp open  remoteanything?
+| ssl-enum-ciphers: 
+|   TLSv1.2: 
+|     ciphers: 
+|       TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 (ecdh_x25519) - A
+|       TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 (ecdh_x25519) - A
+|       TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 (ecdh_x25519) - A
+|     compressors: 
+|       NULL
+|     cipher preference: server
+|   TLSv1.3: 
+|     ciphers: 
+|       TLS_AKE_WITH_AES_256_GCM_SHA384 (X25519MLKEM768) - A
+|       TLS_AKE_WITH_CHACHA20_POLY1305_SHA256 (X25519MLKEM768) - A
+|       TLS_AKE_WITH_AES_128_GCM_SHA256 (X25519MLKEM768) - A
+|     cipher preference: server
+|_  least strength: A
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Mon Oct 12 23:01:02 2026 -- 1 IP address (1 host up) scanned in 18.10 seconds
