@@ -1,0 +1,25 @@
+HTTP/1.1 200 OK
+Content-Security-Policy: default-src 'none';base-uri 'none';form-action 'none';frame-ancestors 'none'
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-site
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: DENY
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+Cache-Control: no-store
+Access-Control-Allow-Origin: http://localhost:5173
+Vary: Origin
+Content-Type: application/json; charset=utf-8
+Content-Length: 34
+ETag: W/"22-V5Smw31ICpTQFNB1onut6+HkWhY"
+Date: Mon, 12 Oct 2026 16:06:24 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"status":"OK","protocol":"HTTPS"}

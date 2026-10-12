@@ -1,0 +1,10 @@
+# Nmap 7.991 scan initiated Mon Oct 12 17:57:05 2026 as: "C:\\Program Files (x86)\\Nmap\\nmap.exe" -sV -sC -p 4000,5173 -oN docs/security-testing/raw/nmap-2-project-ports.txt 127.0.0.1
+Nmap scan report for localhost (127.0.0.1)
+Host is up (0.00s latency).
+
+PORT     STATE  SERVICE    VERSION
+4000/tcp open   tcpwrapped
+5173/tcp closed unknown
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Mon Oct 12 17:57:10 2026 -- 1 IP address (1 host up) scanned in 5.53 seconds

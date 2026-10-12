@@ -1,0 +1,49 @@
+# Nmap 7.991 scan initiated Mon Oct 12 17:50:09 2026 as: "C:\\Program Files (x86)\\Nmap\\nmap.exe" -sV -sC -p 1-10000 -oN docs/security-testing/raw/nmap-1.txt 127.0.0.1
+Nmap scan report for localhost (127.0.0.1)
+Host is up (0.00059s latency).
+Not shown: 9987 closed tcp ports (reset)
+PORT     STATE    SERVICE             VERSION
+135/tcp  open     msrpc               Microsoft Windows RPC
+137/tcp  filtered netbios-ns
+445/tcp  open     microsoft-ds?
+843/tcp  open     unknown
+1434/tcp open     ms-sql-m?
+3306/tcp open     mysql               MySQL 8.0.16
+|_ssl-date: TLS randomness does not represent time
+| mysql-info: 
+|   Protocol: 10
+|   Version: 8.0.16
+|   Thread ID: 22
+|   Capabilities flags: 65535
+|   Some Capabilities: IgnoreSigpipes, Support41Auth, Speaks41ProtocolNew, DontAllowDatabaseTableColumn, SwitchToSSLAfterHandshake, LongColumnFlag, Speaks41ProtocolOld, InteractiveClient, FoundRows, SupportsTransactions, IgnoreSpaceBeforeParenthesis, SupportsCompression, ODBCClient, SupportsLoadDataLocal, LongPassword, ConnectWithDatabase, SupportsMultipleStatments, SupportsAuthPlugins, SupportsMultipleResults
+|   Status: Autocommit
+|   Salt: e\x0C\x13(:\x11{H'\x1Ak\x0BvNUoy\x0C~F
+|_  Auth Plugin Name: caching_sha2_password
+| ssl-cert: Subject: commonName=MySQL_Server_8.0.16_Auto_Generated_Server_Certificate
+| Not valid before: 2025-03-13T09:21:02
+|_Not valid after:  2035-03-11T09:21:02
+4000/tcp open     remoteanything?
+|_ssl-date: TLS randomness does not represent time
+| tls-alpn: 
+|_  http/1.1
+| ssl-cert: Subject: commonName=localhost/organizationName=HustleHub/stateOrProvinceName=WesternCape/countryName=ZA
+| Not valid before: 2026-10-11T17:51:04
+|_Not valid after:  2027-10-11T17:51:04
+5040/tcp open     unknown
+5354/tcp open     mdnsresponder?
+6045/tcp open     x11?
+6463/tcp open     unknown
+6881/tcp open     bittorrent-tracker?
+7680/tcp open     pando-pub?
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| smb2-time: 
+|   date: 2026-10-12T15:50:30
+|_  start_date: N/A
+| smb2-security-mode: 
+|   3.1.1: 
+|_    Message signing enabled and required
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Mon Oct 12 17:50:44 2026 -- 1 IP address (1 host up) scanned in 34.71 seconds

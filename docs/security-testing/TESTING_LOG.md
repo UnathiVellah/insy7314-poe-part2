@@ -1,0 +1,43 @@
+# Testing log
+
+One row per run. Never delete rows; add new ones at the bottom. Times are SAST (UTC+2).
+A `≈` means the time was reconstructed from file timestamps or record IDs, not noted at the time.
+
+**Code under test (all rows below):** branch `Auth-&-security---Luis`, after the escape/price
+fix, with Max's booking and transaction routes merged in. Pre-final baseline.
+**Commit hash:** add from GitHub Desktop, History tab (one hash applies to every row below).
+**Machine:** Windows 11, PowerShell, Nmap 7.991, Postman desktop.
+**Target:** the API on `https://localhost:4000` against the shared MongoDB Atlas database.
+
+## Round 1: baseline, before any fixes (2026-10-12)
+
+| # | Time | Tool | Target | Command or request | Raw output | Evidence | Phase | Result |
+|---|------|------|--------|--------------------|-----------|----------|-------|--------|
+| 1 | before 17:26 | npm | API | `npm start` | - | S01 | Before | Atlas connected, admin already exists, "HTTPS server running on port 4000" |
+| 2 | ≈17:26 | npm audit | `secure-mern-app/api` | `npm audit` | `raw/npm-audit-api-1.txt` | S02 | Before | 0 vulnerabilities (V-06) |
+| 3 | ≈17:26 | npm audit | `secure-mern-app/client` | `npm audit` | `raw/npm-audit-client-1.txt` | S03 | Before | 0 vulnerabilities (V-06) |
+| 4 | 17:50 | Nmap | 127.0.0.1 | `nmap -sV -sC -p 1-10000 127.0.0.1` | `raw/nmap-1.txt` | S04 | Before | 12 open ports, mostly host software (Windows services, MySQL 8.0.16, SQL Browser, BitTorrent). Only 4000 belongs to the project (V-02, I-01). Screenshot is cut off at 4000/tcp; the full output is in the raw file |
+| 5 | 17:57 | Nmap | 127.0.0.1 ports 4000, 5173 | `nmap -sV -sC -p 4000,5173 127.0.0.1` | `raw/nmap-2-project-ports.txt` | S04b | Before | 4000 open (`tcpwrapped`), 5173 closed. Windows socket error 10013 on Nmap's source port, so the service probe was incomplete; run 4 and run 6 are the authoritative results for port 4000 |
+| 6 | 18:00 | Nmap | 127.0.0.1:4000 | `nmap -sV --script ssl-enum-ciphers -p 4000 127.0.0.1` | `raw/nmap-3-tls.txt` | S04c (two parts) | Before | TLS 1.2 and 1.3 only, all suites graded A. 10 of 19 TLS 1.2 suites use static RSA key exchange: **F-01** (V-01) |
+| 7 | 18:05 | curl | `/health` | `curl.exe -k -i https://localhost:4000/health` | `raw/headers-1.txt` (second run 18:06) | S05 | Before | All expected security headers present, no `X-Powered-By`, single-origin CORS (V-03, V-04, V-05) |
+| 8 | ≈18:15 | Postman | `POST /api/auth/register` | client account, role `client` | - | S06 | Before | 201 Created, no password hash in response (V-12, V-14) |
+| 9 | ≈18:20 | Postman | `POST /api/auth/login` | freelancer account | - | S07 | Before | 200 OK, token returned (redacted in the screenshot) (V-12, V-14) |
+| 10 | ≈18:25 | Postman | `GET /api/auth/me` | freelancer token | - | S08 | Before | 200 OK (V-14) |
+| 11 | ≈18:25 | Postman | `GET /api/auth/me` | no token | - | S09 | Before | 401 `Authentication token required` (V-07) |
+| 12 | 18:33 | Postman | `POST /api/gigs` | freelancer token, `price: 19.99` | - | S13a | Before | 201 Created; 19.99 accepted (V-13). Time from the record's `createdAt` |
+| 13 | ≈18:35 | Postman | `GET /api/gigs` | public | - | S13b | Before | 200 OK, public list returned (V-14) |
+| 14 | 18:35-19:05, exact time not noted | Postman | `POST /api/gigs` | client token | - | S10 | Before | 403 `You do not have permission to perform this action` (V-08) |
+| 15 | same window | Postman | `GET /api/admin/users` | admin token | - | S14a | Before | 200 OK, user list (V-08) |
+| 16 | same window | Postman | `GET /api/admin/users` | non-admin token | - | S14b | Before | 403 (V-08) |
+| 17 | same window, last | Postman | `POST /api/auth/login` | repeated wrong passwords | - | S12 | Before | `429 Too many requests` (V-09). The limiter blocked further logins from this IP for the rest of the 15-minute window |
+| 18 | ≈19:12 | Postman | `POST /api/auth/login` | body `{"email": {"$gt": ""}, "password": "x"}` | - | S11 | Before | 400 `All input values must be text`, no token (V-15, P-01 current behaviour) |
+
+## Planned, not yet run
+
+| What | Why | Evidence name | Notes |
+|------|-----|---------------|-------|
+| Atlas Network Access page | Evidence for C-03 | S17 | Screenshot only |
+| 35 empty `POST /api/bookings`, then 35 empty `POST /api/transactions` | Confirm C-01 (no 429 expected) | S18, S19 | Postman Runner, client token |
+| OWASP ZAP baseline/automated scan | Rubric: web scan | `raw/zap-*.html` | Official run on the final merged code, unauthenticated and with a JWT |
+| Repeat Nmap, `npm audit`, headers on final code | Rubric: retest | `raw/*-final.*` | After Max's and Person 4's merge |
+| Retests for every fix | Remediation flywheel | `evidence/after/` | Same command or request as the "before" run |
