@@ -14,7 +14,7 @@ const rateLimitHandler = (req, res) => {
 // (skipSuccessfulRequests) means a legitimate user who gets their password
 // right on, say, the 3rd try is never penalised for their own typos.
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 60 * 60 * 1000, // 15 minutes
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
@@ -26,7 +26,7 @@ const loginLimiter = rateLimit({
 // still invites automated mass account creation / email enumeration via the
 // 409 "User already exists" response.
 const registerLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
+    windowMs: 180 * 60 * 1000, // 1 hour
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
