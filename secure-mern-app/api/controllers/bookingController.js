@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Gig = require('../models/Gig');
+const Transaction = require('../models/Transaction');
 
 const validId = id => mongoose.isObjectIdOrHexString(id);
 
@@ -12,6 +13,8 @@ const createBooking = async (req, res, next) => {
 
         if (
             !req.body ||
+            typeof req.body !== 'object' ||
+            Array.isArray(req.body) ||
             Object.keys(req.body).length !== 1 ||
             !validId(gigId)
         ) {
@@ -20,31 +23,52 @@ const createBooking = async (req, res, next) => {
             });
         }
 
-        const gig = await Gig.findOne({
-            _id: gigId,
-            isActive: true
-        });
+        let booking;
 
-        if (!gig) {
-            return res.status(404).json({
-                error: 'Gig not found or unavailable'
-            });
-        }
+        await mongoose.connection.transaction(async session => {
+            const gig = await Gig.findOne({
+                _id: gigId,
+                isActive: true
+            }).session(session);
 
-        if (String(gig.freelancer) === String(req.user.id)) {
-            return res.status(403).json({
-                error: 'Cannot book your own gig'
-            });
-        }
+            if (!gig) {
+                const error = new Error('Gig not found or unavailable');
+                error.statusCode = 404;
+                throw error;
+            }
 
-        const agreedPriceCents = Math.round(gig.price * 100);
+            if (String(gig.freelancer) === String(req.user.id)) {
+                const error = new Error('Cannot book your own gig');
+                error.statusCode = 403;
+                throw error;
+            }
 
-        const booking = await Booking.create({
-            gig: gig._id,
-            client: req.user.id,
-            freelancer: gig.freelancer,
-            agreedPriceCents,
-            status: 'pending'
+            const agreedPriceCents = Math.round(gig.price * 100);
+
+            const bookings = await Booking.create(
+                [{
+                    gig: gig._id,
+                    client: req.user.id,
+                    freelancer: gig.freelancer,
+                    agreedPriceCents,
+                    status: 'pending'
+                }],
+                { session }
+            );
+
+            booking = bookings[0];
+
+            await Transaction.create(
+                [{
+                    booking: booking._id,
+                    client: booking.client,
+                    freelancer: booking.freelancer,
+                    amountCents: booking.agreedPriceCents,
+                    status: 'pending',
+                    paymentMethod: 'simulated'
+                }],
+                { session }
+            );
         });
 
         return res.status(201).json({
@@ -52,6 +76,12 @@ const createBooking = async (req, res, next) => {
             data: booking
         });
     } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({
+                error: error.message
+            });
+        }
+
         next(error);
     }
 };
@@ -138,6 +168,8 @@ const updateBookingStatus = async (req, res, next) => {
 
         if (
             !req.body ||
+            typeof req.body !== 'object' ||
+            Array.isArray(req.body) ||
             Object.keys(req.body).length !== 1 ||
             typeof status !== 'string'
         ) {
@@ -170,19 +202,62 @@ const updateBookingStatus = async (req, res, next) => {
         }
 
         const ownerField = transition.actor;
+        let booking;
 
-        const booking = await Booking.findOneAndUpdate(
-            {
-                _id: req.params.id,
-                [ownerField]: req.user.id,
-                status: transition.from
-            },
-            { $set: { status } },
-            {
-                new: true,
-                runValidators: true
-            }
-        );
+        if (status === 'cancelled') {
+            await mongoose.connection.transaction(async session => {
+                booking = await Booking.findOneAndUpdate(
+                    {
+                        _id: req.params.id,
+                        [ownerField]: req.user.id,
+                        status: transition.from
+                    },
+                    { $set: { status } },
+                    {
+                        new: true,
+                        runValidators: true,
+                        session
+                    }
+                );
+
+                if (!booking) {
+                    return;
+                }
+
+                const transaction = await Transaction.findOneAndUpdate(
+                    {
+                        booking: booking._id,
+                        client: req.user.id,
+                        status: 'pending'
+                    },
+                    { $set: { status: 'cancelled' } },
+                    {
+                        new: true,
+                        runValidators: true,
+                        session
+                    }
+                );
+
+                if (!transaction) {
+                    throw new Error(
+                        'Pending transaction missing for cancelled booking'
+                    );
+                }
+            });
+        } else {
+            booking = await Booking.findOneAndUpdate(
+                {
+                    _id: req.params.id,
+                    [ownerField]: req.user.id,
+                    status: transition.from
+                },
+                { $set: { status } },
+                {
+                    new: true,
+                    runValidators: true
+                }
+            );
+        }
 
         if (!booking) {
             return res.status(404).json({

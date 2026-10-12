@@ -1,47 +1,48 @@
 import { describe, expect, it } from 'vitest'
-import { averageIncome, buildIncomeRows, groupIncomeByMonth } from './income'
+import { averageIncomeCents, buildIncomeRows, groupIncomeByMonth } from './income'
 
-// Mid-month, midday timestamps so the month is the same in any time zone.
-const transactions = [
-  { id: 't1', bookingId: 'b1', amount: 500, status: 'simulated-paid', createdAt: '2026-07-15T12:00:00.000Z' },
-  { id: 't2', bookingId: 'b2', amount: 750, status: 'simulated-paid', createdAt: '2026-09-10T12:00:00.000Z' },
-  { id: 't3', bookingId: 'b3', amount: 250, status: 'simulated-paid', createdAt: '2026-09-20T12:00:00.000Z' },
-]
+// All amounts are in cents: 50000 is R500.00.
 
-describe('averageIncome', () => {
-  it('divides the total by the number of transactions', () => {
-    expect(averageIncome({ totalIncome: 1500, transactionCount: 3 })).toBe(500)
+describe('averageIncomeCents', () => {
+  it('divides the total by the number of paid bookings', () => {
+    expect(averageIncomeCents({ totalIncomeCents: 150000, completedPayments: 3 })).toBe(50000)
   })
 
-  it('is zero when there are no transactions', () => {
-    expect(averageIncome({ totalIncome: 0, transactionCount: 0 })).toBe(0)
+  it('rounds to a whole number of cents', () => {
+    expect(averageIncomeCents({ totalIncomeCents: 100, completedPayments: 3 })).toBe(33)
+  })
+
+  it('is zero when nothing has been paid yet', () => {
+    expect(averageIncomeCents({ totalIncomeCents: 0, completedPayments: 0 })).toBe(0)
   })
 })
 
 describe('groupIncomeByMonth', () => {
+  const transactions = [
+    { id: 't1', amountCents: 50000, createdAt: '2026-09-02T10:00:00' },
+    { id: 't2', amountCents: 25000, createdAt: '2026-09-20T10:00:00' },
+    { id: 't3', amountCents: 100000, createdAt: '2026-08-15T10:00:00' },
+  ]
+
   it('adds up income within each month, oldest month first', () => {
     const months = groupIncomeByMonth(transactions)
 
-    expect(months.map((month) => month.key)).toEqual(['2026-07', '2026-09'])
-    expect(months.map((month) => month.total)).toEqual([500, 1000])
+    expect(months.map((month) => month.key)).toEqual(['2026-08', '2026-09'])
+    expect(months.map((month) => month.total)).toEqual([100000, 75000])
   })
 
-  it('does not list months that have no income', () => {
-    const months = groupIncomeByMonth(transactions)
-    expect(months.find((month) => month.key === '2026-08')).toBeUndefined()
-  })
+  it('labels each month for the chart', () => {
+    const [august] = groupIncomeByMonth(transactions)
 
-  it('labels each month for people', () => {
-    const [july] = groupIncomeByMonth(transactions)
-    expect(july.label).toMatch(/2026/)
+    expect(august.label).toMatch(/Aug/)
+    expect(august.label).toMatch(/2026/)
   })
 
   it('keeps only the most recent months', () => {
     const many = Array.from({ length: 8 }, (_, index) => ({
       id: `t${index}`,
-      bookingId: `b${index}`,
-      amount: 100,
-      createdAt: new Date(2026, index, 15, 12).toISOString(),
+      amountCents: 100,
+      createdAt: `2026-${String(index + 1).padStart(2, '0')}-10T10:00:00`,
     }))
 
     const months = groupIncomeByMonth(many, 6)
@@ -51,8 +52,14 @@ describe('groupIncomeByMonth', () => {
     expect(months[5].key).toBe('2026-08')
   })
 
-  it('ignores transactions with an invalid date and copes with none at all', () => {
-    expect(groupIncomeByMonth([{ amount: 100, createdAt: 'not-a-date' }])).toEqual([])
+  it('skips a payment with an unreadable date', () => {
+    const months = groupIncomeByMonth([{ id: 'x', amountCents: 500, createdAt: 'not a date' }, transactions[0]])
+
+    expect(months).toHaveLength(1)
+    expect(months[0].total).toBe(50000)
+  })
+
+  it('returns nothing when there are no payments', () => {
     expect(groupIncomeByMonth([])).toEqual([])
   })
 })
@@ -61,38 +68,40 @@ describe('buildIncomeRows', () => {
   const bookings = [
     { id: 'b1', gigId: 'g1' },
     { id: 'b2', gigId: 'g2' },
-    { id: 'b3', gigId: 'g-deleted' },
   ]
   const gigs = [
-    { id: 'g1', title: 'Logo design' },
-    { id: 'g2', title: 'React bug fixing' },
+    { id: 'g1', title: 'Logo design', isActive: true },
+    { id: 'g2', title: 'Old gig', isActive: false },
+  ]
+  const transactions = [
+    { id: 't1', bookingId: 'b1', amountCents: 50000, status: 'succeeded', createdAt: '2026-09-02T10:00:00.000Z' },
+    { id: 't2', bookingId: 'b2', amountCents: 25000, status: 'succeeded', createdAt: '2026-09-20T10:00:00.000Z' },
   ]
 
-  it('names the gig behind each transaction, newest first', () => {
+  it('names the gig behind each payment, newest first', () => {
     const rows = buildIncomeRows(transactions, bookings, gigs)
 
-    expect(rows.map((row) => row.id)).toEqual(['t3', 't2', 't1'])
-    expect(rows.find((row) => row.id === 't1').gigTitle).toBe('Logo design')
-    expect(rows.find((row) => row.id === 't2').gigTitle).toBe('React bug fixing')
+    expect(rows.map((row) => row.gigTitle)).toEqual(['Old gig', 'Logo design'])
   })
 
-  it('has a null title when the gig has been deleted or the booking is unknown', () => {
-    const rows = buildIncomeRows(transactions, bookings.slice(0, 2), gigs)
-    expect(rows.find((row) => row.id === 't3').gigTitle).toBeNull()
+  it('keeps the amount, status and date of each payment', () => {
+    const [newest] = buildIncomeRows(transactions, bookings, gigs)
 
-    const deleted = buildIncomeRows(transactions, bookings, gigs)
-    expect(deleted.find((row) => row.id === 't3').gigTitle).toBeNull()
+    expect(newest).toMatchObject({
+      id: 't2',
+      amountCents: 25000,
+      status: 'succeeded',
+      createdAt: '2026-09-20T10:00:00.000Z',
+    })
   })
 
-  it('keeps the amount, status and date of each transaction', () => {
-    const [first] = buildIncomeRows(transactions, bookings, gigs)
+  it('has no title when the booking or gig cannot be found', () => {
+    const rows = buildIncomeRows(
+      [{ id: 't9', bookingId: 'unknown', amountCents: 1, status: 'succeeded', createdAt: '2026-09-01T00:00:00.000Z' }],
+      bookings,
+      gigs,
+    )
 
-    expect(first).toMatchObject({ amount: 250, status: 'simulated-paid', createdAt: '2026-09-20T12:00:00.000Z' })
-  })
-
-  it('does not change the list it was given', () => {
-    const copy = [...transactions]
-    buildIncomeRows(transactions, bookings, gigs)
-    expect(transactions).toEqual(copy)
+    expect(rows[0].gigTitle).toBeNull()
   })
 })

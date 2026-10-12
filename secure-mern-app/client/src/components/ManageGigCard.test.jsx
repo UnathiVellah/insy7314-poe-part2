@@ -7,7 +7,7 @@ const gig = {
   id: 'g1',
   ownerId: 'u1',
   title: 'Logo design',
-  description: 'Three concepts',
+  description: 'Three concepts and one revision',
   category: 'Design',
   price: 500,
   createdAt: '2026-09-20T10:00:00.000Z',
@@ -52,7 +52,7 @@ describe('ManageGigCard', () => {
 
       expect(onUpdate).toHaveBeenCalledWith('g1', {
         title: 'Logo design',
-        description: 'Three concepts',
+        description: 'Three concepts and one revision',
         category: 'Design',
         price: 650,
       })
@@ -89,7 +89,7 @@ describe('ManageGigCard', () => {
 
       await user.click(screen.getByRole('button', { name: 'Delete Logo design' }))
 
-      expect(screen.getByText(/this cannot be undone/i)).toBeInTheDocument()
+      expect(screen.getByText(/existing bookings are not affected/i)).toBeInTheDocument()
       expect(onDelete).not.toHaveBeenCalled()
     })
 

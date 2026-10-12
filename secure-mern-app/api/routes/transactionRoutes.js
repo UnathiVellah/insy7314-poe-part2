@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { paymentLimiter } = require('../middleware/rateLimiters');
 
 const {
     createTransaction,
@@ -24,7 +25,7 @@ const requireRole = role => (req, res, next) => {
 router.use(protect);
 
 // Client payment endpoints
-router.post('/', requireRole(ROLES.CLIENT), createTransaction);
+router.post('/', requireRole(ROLES.CLIENT), paymentLimiter, createTransaction);
 
 router.get('/mine', requireRole(ROLES.CLIENT), getMyTransactions);
 
