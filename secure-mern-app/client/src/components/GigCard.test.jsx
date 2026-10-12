@@ -21,6 +21,18 @@ describe('GigCard', () => {
     expect(screen.getByText(/listed .*2026/i)).toBeInTheDocument()
   })
 
+  it('marks a removed gig so the freelancer can tell it is no longer listed', () => {
+    render(<GigCard gig={{ ...gig, isActive: false }} />)
+
+    expect(screen.getByText('Removed')).toBeInTheDocument()
+  })
+
+  it('shows no marker on a gig that is listed', () => {
+    render(<GigCard gig={{ ...gig, isActive: true }} />)
+
+    expect(screen.queryByText('Removed')).not.toBeInTheDocument()
+  })
+
   it('renders extra content such as action buttons passed as children', () => {
     render(
       <GigCard gig={gig}>

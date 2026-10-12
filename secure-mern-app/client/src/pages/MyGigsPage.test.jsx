@@ -12,10 +12,11 @@ vi.mock('../services/gigService')
 const freelancer = { id: 'u1', fullName: 'Thandi Nkosi', email: 'thandi@example.com', role: 'freelancer' }
 const client = { id: 'u2', fullName: 'Sipho Dlamini', email: 'sipho@example.com', role: 'client' }
 
+// What GET /api/gigs/mine gives back: the freelancer's gigs, removed ones included.
 const gigs = [
-  { id: 'a', ownerId: 'u1', title: 'Logo design', description: 'Three concepts', category: 'Design', price: 500, createdAt: '2026-09-01T09:00:00.000Z' },
-  { id: 'b', ownerId: 'u3', title: 'Someone else gig', description: 'Not mine', category: 'Business', price: 900, createdAt: '2026-09-05T09:00:00.000Z' },
-  { id: 'c', ownerId: 'u1', title: 'Copywriting', description: 'Landing page text', category: 'Writing & Translation', price: 750, createdAt: '2026-09-03T09:00:00.000Z' },
+  { id: 'a', ownerId: 'u1', title: 'Logo design', description: 'Three concepts and one revision', category: 'Design', price: 500, isActive: true, createdAt: '2026-09-01T09:00:00.000Z' },
+  { id: 'c', ownerId: 'u1', title: 'Copywriting', description: 'Landing page text and headlines', category: 'Writing & Translation', price: 750, isActive: true, createdAt: '2026-09-03T09:00:00.000Z' },
+  { id: 'r', ownerId: 'u1', title: 'Old poster design', description: 'A gig that was taken down earlier', category: 'Design', price: 300, isActive: false, createdAt: '2026-08-01T09:00:00.000Z' },
 ]
 
 const loginAs = (user) => {
@@ -29,7 +30,7 @@ describe('MyGigsPage', () => {
   beforeEach(() => {
     sessionStorage.clear()
     vi.resetAllMocks()
-    gigService.listGigs.mockResolvedValue(gigs)
+    gigService.listMyGigs.mockResolvedValue(gigs)
   })
 
   describe('access', () => {
@@ -37,7 +38,7 @@ describe('MyGigsPage', () => {
       renderApp('/my-gigs')
 
       expect(screen.getByRole('heading', { name: /log in/i })).toBeInTheDocument()
-      expect(gigService.listGigs).not.toHaveBeenCalled()
+      expect(gigService.listMyGigs).not.toHaveBeenCalled()
     })
 
     it('sends a client to their dashboard instead', async () => {
@@ -45,7 +46,7 @@ describe('MyGigsPage', () => {
       renderApp('/my-gigs')
 
       expect(await screen.findByRole('heading', { name: /welcome, sipho dlamini/i })).toBeInTheDocument()
-      expect(gigService.listGigs).not.toHaveBeenCalled()
+      expect(gigService.listMyGigs).not.toHaveBeenCalled()
     })
 
     it('shows the My gigs link to freelancers only', async () => {
@@ -67,27 +68,62 @@ describe('MyGigsPage', () => {
   })
 
   describe('listing', () => {
-    it("shows only the freelancer's own gigs, newest first", async () => {
+    it('shows the live gigs, newest first, and hides the deleted one', async () => {
       loginAs(freelancer)
       renderApp('/my-gigs')
 
       expect(await screen.findByText('Logo design')).toBeInTheDocument()
 
       expect(cardTitles()).toEqual(['Copywriting', 'Logo design'])
-      expect(screen.queryByText('Someone else gig')).not.toBeInTheDocument()
+      expect(screen.queryByText('Old poster design')).not.toBeInTheDocument()
     })
 
-    it('invites the freelancer to create a first gig when they have none', async () => {
+    it('offers to show deleted gigs, marked as removed with nothing to edit', async () => {
       loginAs(freelancer)
-      gigService.listGigs.mockResolvedValue([gigs[1]])
+      const user = userEvent.setup()
       renderApp('/my-gigs')
 
-      expect(await screen.findByText(/you have not created any gigs yet/i)).toBeInTheDocument()
+      await user.click(await screen.findByRole('button', { name: 'Show deleted gigs (1)' }))
+
+      const card = screen.getByRole('heading', { name: 'Old poster design' }).closest('article')
+      expect(within(card).getByText('Removed')).toBeInTheDocument()
+      expect(within(card).queryByRole('button')).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Hide deleted gigs (1)' }))
+
+      expect(screen.queryByText('Old poster design')).not.toBeInTheDocument()
+    })
+
+    it('has no deleted-gigs button when nothing has been deleted', async () => {
+      loginAs(freelancer)
+      gigService.listMyGigs.mockResolvedValue(gigs.slice(0, 2))
+      renderApp('/my-gigs')
+
+      await screen.findByText('Logo design')
+
+      expect(screen.queryByRole('button', { name: /deleted gigs/i })).not.toBeInTheDocument()
+    })
+
+    it('invites the freelancer to create a gig when they have no live ones', async () => {
+      loginAs(freelancer)
+      gigService.listMyGigs.mockResolvedValue([gigs[2]])
+      renderApp('/my-gigs')
+
+      expect(await screen.findByText(/you have no live gigs/i)).toBeInTheDocument()
+    })
+
+    it('invites the freelancer to create a first gig when they have none at all', async () => {
+      loginAs(freelancer)
+      gigService.listMyGigs.mockResolvedValue([])
+      renderApp('/my-gigs')
+
+      expect(await screen.findByText(/you have no live gigs/i)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /deleted gigs/i })).not.toBeInTheDocument()
     })
 
     it('shows the error and hides the New gig button when loading fails', async () => {
       loginAs(freelancer)
-      gigService.listGigs.mockRejectedValue(new ApiError('Unable to reach the server. Please try again later.', 0))
+      gigService.listMyGigs.mockRejectedValue(new ApiError('Unable to reach the server. Please try again later.', 0))
       renderApp('/my-gigs')
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Unable to reach the server')
@@ -102,9 +138,10 @@ describe('MyGigsPage', () => {
         id: 'd',
         ownerId: 'u1',
         title: 'Brand identity',
-        description: 'Logo, colours and fonts',
+        description: 'Logo, colours and fonts for a new business',
         category: 'Design',
         price: 1200,
+        isActive: true,
         createdAt: '2026-10-01T09:00:00.000Z',
       }
       gigService.createGig.mockResolvedValue(created)
@@ -113,14 +150,14 @@ describe('MyGigsPage', () => {
 
       await user.click(await screen.findByRole('button', { name: 'New gig' }))
       await user.type(screen.getByLabelText('Title'), 'Brand identity')
-      await user.type(screen.getByLabelText('Description'), 'Logo, colours and fonts')
+      await user.type(screen.getByLabelText('Description'), 'Logo, colours and fonts for a new business')
       await user.type(screen.getByLabelText('Category'), 'Design')
       await user.type(screen.getByLabelText('Price (ZAR)'), '1200')
       await user.click(screen.getByRole('button', { name: 'Create gig' }))
 
       expect(gigService.createGig).toHaveBeenCalledWith({
         title: 'Brand identity',
-        description: 'Logo, colours and fonts',
+        description: 'Logo, colours and fonts for a new business',
         category: 'Design',
         price: 1200,
       })
@@ -143,7 +180,7 @@ describe('MyGigsPage', () => {
 
       expect(gigService.updateGig).toHaveBeenCalledWith('a', {
         title: 'Logo design',
-        description: 'Three concepts',
+        description: 'Three concepts and one revision',
         category: 'Design',
         price: 650,
       })
@@ -151,9 +188,9 @@ describe('MyGigsPage', () => {
       expect(screen.getByRole('status')).toHaveTextContent('Your gig has been updated.')
     })
 
-    it('removes a gig from the list once it is deleted', async () => {
+    it('moves a gig to the deleted list once it is deleted', async () => {
       loginAs(freelancer)
-      gigService.deleteGig.mockResolvedValue({ id: 'a' })
+      gigService.deleteGig.mockResolvedValue(undefined)
       const user = userEvent.setup()
       renderApp('/my-gigs')
 
@@ -161,8 +198,11 @@ describe('MyGigsPage', () => {
       await user.click(screen.getByRole('button', { name: 'Yes, delete' }))
 
       expect(gigService.deleteGig).toHaveBeenCalledWith('a')
-      expect(await screen.findByText('Your gig has been deleted.')).toBeInTheDocument()
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        'Your gig has been deleted. Existing bookings are not affected.',
+      )
       expect(cardTitles()).toEqual(['Copywriting'])
+      expect(screen.getByRole('button', { name: 'Show deleted gigs (2)' })).toBeInTheDocument()
     })
 
     it('closes the new gig form without creating anything when cancelled', async () => {

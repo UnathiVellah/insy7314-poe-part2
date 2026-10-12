@@ -6,11 +6,16 @@ import { useAuth } from '../context/useAuth'
 import * as gigService from '../services/gigService'
 import { SORT_OPTIONS, filterAndSortGigs } from '../utils/gigs'
 
+const PAGE_SIZE = 12
+
 function GigsPage() {
   const { user } = useAuth()
   const [gigs, setGigs] = useState([])
+  const [pagination, setPagination] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
+  const [moreError, setMoreError] = useState('')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('newest')
 
@@ -18,9 +23,11 @@ function GigsPage() {
     let cancelled = false
 
     gigService
-      .listGigs()
-      .then((data) => {
-        if (!cancelled) setGigs(data)
+      .listGigs({ page: 1, limit: PAGE_SIZE })
+      .then((result) => {
+        if (cancelled) return
+        setGigs(result.gigs)
+        setPagination(result.pagination)
       })
       .catch((err) => {
         if (!cancelled) setError(err.message)
@@ -35,6 +42,28 @@ function GigsPage() {
   }, [])
 
   const visibleGigs = useMemo(() => filterAndSortGigs(gigs, { query, sort }), [gigs, query, sort])
+
+  const hasMore = pagination !== null && pagination.page < pagination.totalPages
+
+  // The API hands out gigs a page at a time. A gig listed while the visitor
+  // is browsing can push one onto the next page twice, so repeats are skipped.
+  const handleLoadMore = async () => {
+    setMoreError('')
+    setLoadingMore(true)
+
+    try {
+      const result = await gigService.listGigs({ page: pagination.page + 1, limit: PAGE_SIZE })
+      setGigs((current) => {
+        const known = new Set(current.map((gig) => gig.id))
+        return [...current, ...result.gigs.filter((gig) => !known.has(gig.id))]
+      })
+      setPagination(result.pagination)
+    } catch (err) {
+      setMoreError(err.message)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   return (
     <section>
@@ -79,10 +108,14 @@ function GigsPage() {
             <>
               <p className="result-count" aria-live="polite">
                 Showing {visibleGigs.length} of {gigs.length} gigs
+                {hasMore && ` loaded (${pagination.total} in total)`}
               </p>
 
               {visibleGigs.length === 0 ? (
-                <p className="muted">No gigs match your search.</p>
+                <p className="muted">
+                  No gigs match your search.
+                  {hasMore && ' Load more gigs to search further.'}
+                </p>
               ) : (
                 <div className="gig-grid">
                   {visibleGigs.map((gig) => (
@@ -90,6 +123,16 @@ function GigsPage() {
                       {user.role === 'client' && <BookGigButton gig={gig} />}
                     </GigCard>
                   ))}
+                </div>
+              )}
+
+              <StatusMessage type="error" message={moreError} />
+
+              {hasMore && (
+                <div className="load-more">
+                  <button type="button" className="btn btn-secondary" onClick={handleLoadMore} disabled={loadingMore}>
+                    {loadingMore ? 'Loading...' : 'Load more gigs'}
+                  </button>
                 </div>
               )}
             </>

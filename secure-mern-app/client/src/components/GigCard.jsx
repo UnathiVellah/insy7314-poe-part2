@@ -3,11 +3,15 @@ import { formatDate, formatPrice } from '../utils/format'
 // Shows one gig. Anything passed as children (for example a Book button) is
 // rendered in an actions area at the bottom of the card.
 //
+// A gig the freelancer has removed is still shown to them (marked "Removed"),
+// because bookings made on it keep working.
+//
 // Gig text comes from other users, so it is always rendered as plain text
 // (React escapes it) and never as HTML.
 function GigCard({ gig, children }) {
   return (
     <article className="card gig-card">
+      {gig.isActive === false && <span className="badge badge-muted">Removed</span>}
       <h2 className="gig-title">{gig.title}</h2>
       <p className="gig-description">{gig.description}</p>
 
