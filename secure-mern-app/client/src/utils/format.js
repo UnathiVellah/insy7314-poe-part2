@@ -8,6 +8,10 @@ const priceFormatter = new Intl.NumberFormat('en-ZA', {
 
 export const formatPrice = (amount) => priceFormatter.format(amount)
 
+// The API keeps bookings and payments in whole cents (2000 means R20.00) so no
+// rounding errors creep into money. This turns cents into a rand amount.
+export const formatCents = (cents) => formatPrice(cents / 100)
+
 // Turns an ISO timestamp such as "2026-09-20T10:00:00.000Z" into "20 Sept 2026".
 // Returns an empty string for a missing or invalid date instead of "Invalid Date".
 export const formatDate = (isoString) => {
